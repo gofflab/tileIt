@@ -25,7 +25,7 @@ class TileRNA:
 		pass
 
 	def __repr__(self):
-		return "%s:%s  %s  %s" % (self.name,self.prefix,self.sequence,self.suffix)
+		return "%s:%s  %s  %s" % (self.name,self.prefix,self.sequence.upper(),self.suffix)
 
 	def toFasta(self):
 		return ">%s\n%s" % (self.name,self.sequence)
@@ -39,8 +39,8 @@ class TileRNA:
 	def __hash__(self):
 		return hash(self.sequence.upper())
 
-	def __eq__(self,b):
-		if self.sequence.upper() == b.sequence.upper():
+	def __eq__(self,other):
+		if self.sequence.upper() == other.sequence.upper():
 			return True
 		else:
 			return False
@@ -51,31 +51,24 @@ class TileRNA:
 
 
 def usage():
-	sys.stderr.write("")
+	sys.stderr.write("""
+TileIt: simply python utility for oligo sequence generation from fasta files
+-----------------------------------------------------------------------------
+Usage:
+	tileIt.py [options] <filename.fasta>
 
+General Options:
+	-h/--help               Print this helpful help page     [ default: NA ]
+	-o/--output             Output filename                  [ default: stdout ]
+	-v/--verbose            Doesn't do much yet..            [ default: False ]
 
-#######################
-# Variables
-#######################
-universalPrimers = {
-	'M13 forward sequencing primer (-20)': 'GTAAAACGACGGCCAGT',
-	'M13 forward sequencing primer (-40)': 'GTTTTCCCAGTCACGAC',
-	'M13 forward sequencing primer (-47)': 'CGCCAGGGTTTTCCCAGTCACGAC',
-	'M13 reverse sequencing primer (-24)': 'AACAGCTATGACCATG',
-	'M13 reverse sequencing primer (-48)': 'AGCGGATAACAATTTCACACAGGA',
-	'T3 promoter': 'ATTAACCCTCACTAAAGGGA',
-	'T7 universal primer': 'TAATACGACTCACTATAGGG',
-	'T7 Terminator': 'GCTAGTTATTGCTCAGCGG',
-	'SP6 promoter': 'CATACGATTTAGGTGACACTATAG',
-	'SP6 universal primer': 'ATTTAGGTGACACTATAG',
-	'VF2': 'tgccacctgacgtctaagaa',
-	'VR': 'attaccgcctttgagtgagc',
-}
+Oligo Options:
+	-p/--prefix             String added to each designed oligo 5' end (length is subtracted from max-tile-length)   [ default: T7 Universal ]
+	-s/--suffix             String added to each designed oligo 3' end (length is subtracted from max-tile-length)   [ default: M13 reverse (-24) ]
+	-l/--max-tile-length    Integer. Maximum length of designed oligos                                               [ default: 150 ]
+	-w/--tile-step          Integer.  Window step size for designed oligos                                           [ default: 1 ]
 
-maxTileSize = 150
-tileStep = 1
-prefix = universalPrimers['T7 universal primer']
-suffix = universalPrimers['M13 reverse sequencing primer (-24)']
+""")
 
 #######################
 # Helper functions
@@ -101,7 +94,7 @@ def findUnique(tiles):
 #######################
 # Scan input sequence #
 #######################
-def scanSequence(sequence,seqName,tileStep=tileStep,prefix=prefix,suffix=suffix,maxTileSize=maxTileSize):
+def scanSequence(sequence,seqName,tileStep=1,prefix='',suffix='',maxTileSize=150):
 	tileSize = maxTileSize-len(prefix)-len(suffix)
 	tiles = []
 
@@ -114,8 +107,31 @@ def scanSequence(sequence,seqName,tileStep=tileStep,prefix=prefix,suffix=suffix,
 	return tiles
 
 def main():
+	#######################
+	# Variables
+	#######################
+	universalPrimers = {
+		'M13 forward sequencing primer (-20)': 'GTAAAACGACGGCCAGT',
+		'M13 forward sequencing primer (-40)': 'GTTTTCCCAGTCACGAC',
+		'M13 forward sequencing primer (-47)': 'CGCCAGGGTTTTCCCAGTCACGAC',
+		'M13 reverse sequencing primer (-24)': 'AACAGCTATGACCATG',
+		'M13 reverse sequencing primer (-48)': 'AGCGGATAACAATTTCACACAGGA',
+		'T3 promoter': 'ATTAACCCTCACTAAAGGGA',
+		'T7 universal primer': 'TAATACGACTCACTATAGGG',
+		'T7 Terminator': 'GCTAGTTATTGCTCAGCGG',
+		'SP6 promoter': 'CATACGATTTAGGTGACACTATAG',
+		'SP6 universal primer': 'ATTTAGGTGACACTATAG',
+		'VF2': 'tgccacctgacgtctaagaa',
+		'VR': 'attaccgcctttgagtgagc',
+	}
+
+	maxTileSize = 150
+	tileStep = 1
+	prefix = universalPrimers['T7 universal primer']
+	suffix = universalPrimers['M13 reverse sequencing primer (-24)']
+
 	try:
-		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:",["help","output=","verbose","prefix=","suffix=","max-tile-length="])
+		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step="])
 	except getopt.GetoptError as err:
 		print(err)
 		usage()
@@ -133,25 +149,36 @@ def main():
 		elif o in ("-p","--prefix"):
 			if onlyNucleic(a):
 				prefix = a
+			else:
+				raise(TileError,"Prefix is not a valid nucleic acid sequence.")
 		elif o in ("-s","--suffix"):
 			if onlyNucleic(a):
 				suffix = a
+			else:
+				raise(TileError,"Suffix is not a valid nucleic acid sequence.")
 		elif o in ("-l","--max-tile-length"):
-			maxTileSize = a
+			maxTileSize = int(a)
+		elif o in ("-w","--tile-step"):
+			tileStep = int(a)
 		else:
 			assert False, "Unhandled option"
-
+	# Grab fname as remainder argument
+	try:
+		fname = str(args[0])
+		handle = open(fname,'r')
+	except:
+		usage()
+		sys.exit(2)
+		#print fname
 	#Find window size
 	tileSize = maxTileSize-len(prefix)-len(suffix)
+	
 	#Main workflow
-
-def test():
-	fname = "test/test.fasta"
-	handle = open(fname,'r')
 	fastaIter = sequencelib.FastaIterator(handle)
-
-	mySeq = fastaIter.next()
-	tiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=10)
+	tiles = []
+	for mySeq in fastaIter:
+		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,maxTileSize=maxTileSize,prefix=prefix,suffix=suffix)
+		tiles += tmpTiles
 
 	# Remove duplicate tile sequences
 	tiles = findUnique(tiles)
@@ -161,5 +188,22 @@ def test():
 
 	print len(tiles)
 
+def test():
+	fname = "test/Firre.fasta"
+	handle = open(fname,'r')
+	fastaIter = sequencelib.FastaIterator(handle)
+
+	mySeq = fastaIter.next()
+	tiles = scanSequence(mySeq['sequence'],mySeq['name'])
+
+	print len(tiles)
+	# Remove duplicate tile sequences
+	tiles = findUnique(tiles)
+
+	# for tile in tiles:
+	# 	print "%s\t%0.2f\t%d" % (tile,tile.GC,len(tile))
+
+	print len(tiles)
+
 if __name__ == "__main__":
-	test()
+	main()
