@@ -80,13 +80,14 @@ Oligo Options:
 	-w/--tile-step          Integer. Window step size for designed oligos                                           [ default: 1 ]
 	-t/--tag				Logical argument whether or not to add tag to prefix or suffix position marked with '@'.	[default: F]
 	-e/--tag-length			Integer. Length of barcode 'tag' to add at position indicated by '@'.					[default: 10]
+	-n/--num-tags-per-tile	Integer. Number of unique tags to make per tile											[default: 5]
 
 """)
 
 #######################
 # Helper functions
 #######################
-def onlyNucleic(seq,set=['a','c','g','t','u','A','C','G','T','U','n','N']):
+def onlyNucleic(seq,set=['a','c','g','t','u','A','C','G','T','U','n','N','@']):
 	for c in seq:
 		if c not in set:
 			return False
@@ -104,8 +105,15 @@ def findUnique(tiles):
 			res.append(tile)
 	return res
 
-def buildTags(tagLength=10):
-	tmpTag = sequencelib.GenRandomSeq(tagLength,type="DNA")
+def buildTags(numTags,tagLength,sites):
+	tmpTags = set()
+	while len(tmpTags)<numTags:
+		tmpTag = sequencelib.GenRandomSeq(tagLength,type="DNA")
+		if hasRestrictionSites(tmpTag,sites):
+			continue
+		else:
+			tmpTags.add(sequencelib.GenRandomSeq(tagLength,type="DNA"))
+	return tmpTags
 
 def hasRestrictionSites(sequence,sites):
 	#Parse sites
@@ -122,7 +130,7 @@ def hasRestrictionSites(sequence,sites):
 	#Sum hits
 	totalSites = 0
 	for v in res.values():
-		total += len(v)
+		totalSites += len(v)
 
 	if totalSites > 0:
 		return True
@@ -133,6 +141,8 @@ def hasRestrictionSites(sequence,sites):
 #######################
 # Scan input sequence #
 #######################
+#TODO: Modify this so that it only gets the window of appropriate size.  We will add prefix and suffix afterwards.
+
 def scanSequence(sequence,seqName,tileStep=1,prefix='',suffix='',maxTileSize=150):
 	tileSize = maxTileSize-len(prefix)-len(suffix)
 	tiles = []
@@ -166,11 +176,13 @@ def main():
 
 	maxTileSize = 150
 	tileStep = 1
+	tagLength = 10
+	numTagsPerTile = 5
 	prefix = universalPrimers['T7 universal primer']
 	suffix = universalPrimers['M13 reverse sequencing primer (-24)']
 
 	try:
-		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length="])
+		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile="])
 	except getopt.GetoptError as err:
 		print(err)
 		usage()
@@ -203,6 +215,8 @@ def main():
 			addTag = True
 		elif o in ("-e","--tag-length"):
 			tagLength = int(a)
+		elif o in ("-n","--num-tags-per-tile"):
+			numTagsPerTile = int(a)
 		else:
 			assert False, "Unhandled option"
 	# Grab fname as remainder argument
