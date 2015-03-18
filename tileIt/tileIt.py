@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 import sequencelib,getopt,sys,re
+from Bio import Restriction
+from Bio.Seq import Seq
+from Bio.Alphabet.IUPAC import IUPACAmbiguousDNA
 from itertools import tee,izip
 
 # Base class for a guide RNA
@@ -24,12 +27,20 @@ class TileRNA:
 	def validate(self):
 		pass
 
+	def compilePrefix(self):
+		""" Check Prefix for '@' indicating position to add tag'"""
+		pass
+
+	def compileSuffix(self):
+		""" Check suffix for '@' indicating position to add tag'"""
+		pass
+
 	def __repr__(self):
 		return "%s:%s  %s  %s" % (self.name,self.prefix,self.sequence.upper(),self.suffix)
 
 	def toFasta(self):
 		return ">%s\n%s" % (self.name,self.sequence)
-	
+
 	def toBed(self):
 		pass
 
@@ -65,8 +76,10 @@ General Options:
 Oligo Options:
 	-p/--prefix             String added to each designed oligo 5' end (length is subtracted from max-tile-length)   [ default: T7 Universal ]
 	-s/--suffix             String added to each designed oligo 3' end (length is subtracted from max-tile-length)   [ default: M13 reverse (-24) ]
-	-l/--max-tile-length    Integer. Maximum length of designed oligos                                               [ default: 150 ]
-	-w/--tile-step          Integer.  Window step size for designed oligos                                           [ default: 1 ]
+	-l/--max-tile-length    Integer. Maximum length of designed oligos                                              [ default: 150 ]
+	-w/--tile-step          Integer. Window step size for designed oligos                                           [ default: 1 ]
+	-t/--tag				Logical argument whether or not to add tag to prefix or suffix position marked with '@'.	[default: F]
+	-e/--tag-length			Integer. Length of barcode 'tag' to add at position indicated by '@'.					[default: 10]
 
 """)
 
@@ -75,7 +88,7 @@ Oligo Options:
 #######################
 def onlyNucleic(seq,set=['a','c','g','t','u','A','C','G','T','U','n','N']):
 	for c in seq:
-		if c not in set: 
+		if c not in set:
 			return False
 	return True
 
@@ -91,6 +104,32 @@ def findUnique(tiles):
 			res.append(tile)
 	return res
 
+def buildTags(tagLength=10):
+	tmpTag = sequencelib.GenRandomSeq(tagLength,type="DNA")
+
+def hasRestrictionSites(sequence,sites):
+	#Parse sites
+	sites = sites.split(",")
+	rb = Restriction.RestrictionBatch(sites)
+
+	#Get Bio.Seq object
+	amb = IUPACAmbiguousDNA()
+	tmpSeq = Seq(sequence,amb)
+
+	#Search for sites
+	res = rb.search(tmpSeq)
+
+	#Sum hits
+	totalSites = 0
+	for v in res.values():
+		total += len(v)
+
+	if totalSites > 0:
+		return True
+	else:
+		return False
+
+
 #######################
 # Scan input sequence #
 #######################
@@ -100,7 +139,7 @@ def scanSequence(sequence,seqName,tileStep=1,prefix='',suffix='',maxTileSize=150
 
 	#Pre-compute number of chunks to emit
 	numOfChunks = ((len(sequence)-tileSize)/tileStep) + 1
-    
+
     #Tile across sequence
 	for i in xrange(0,numOfChunks*tileStep,tileStep):
 		tiles.append(TileRNA(sequence=sequence[i:i+tileSize],seqName=seqName,startPos=i+1,prefix=prefix,suffix=suffix))
@@ -131,7 +170,7 @@ def main():
 	suffix = universalPrimers['M13 reverse sequencing primer (-24)']
 
 	try:
-		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step="])
+		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length="])
 	except getopt.GetoptError as err:
 		print(err)
 		usage()
@@ -160,6 +199,10 @@ def main():
 			maxTileSize = int(a)
 		elif o in ("-w","--tile-step"):
 			tileStep = int(a)
+		elif o in ("-t","--tag"):
+			addTag = True
+		elif o in ("-e","--tag-length"):
+			tagLength = int(a)
 		else:
 			assert False, "Unhandled option"
 	# Grab fname as remainder argument
@@ -172,7 +215,7 @@ def main():
 		#print fname
 	#Find window size
 	tileSize = maxTileSize-len(prefix)-len(suffix)
-	
+
 	#Main workflow
 	fastaIter = sequencelib.FastaIterator(handle)
 	tiles = []
