@@ -4,6 +4,8 @@ from Bio import Restriction
 from Bio.Seq import Seq
 from Bio.Alphabet.IUPAC import IUPACAmbiguousDNA
 from itertools import tee,izip
+import copy
+from utils import pp
 
 # Base class for a guide RNA
 # Takes a 23mer 20 Guide + 3 PAM and processes it accordingly
@@ -13,30 +15,43 @@ class TileError(Exception):
 	def __str__(self):
 		return repr(self.value)
 
-class TileRNA:
-	def __init__(self,sequence,seqName,startPos,prefix='',suffix=''):
+class Tile:
+	def __init__(self,sequence,seqName,startPos,prefix='',suffix='',tag=''):
 		self.sequence = sequence
+		self.startPos = startPos
 		self.start = startPos
 		self.seqName = seqName
-		self.name = "%s:%d" % (self.seqName,self.start)
+		self.name = "%s:%d-%d" % (self.seqName,self.start,self.start+len(self.sequence))
 		self.prefix = prefix
 		self.suffix = suffix
+		self.tag = tag
 		#Validate guide
-		self.getGC()
 
 	def validate(self):
-		pass
+		self.getGC()
 
-	def compilePrefix(self):
-		""" Check Prefix for '@' indicating position to add tag'"""
-		pass
+	def compiledPrefix(self):
+		""" Check prefix for '@' indicating position to add tag'"""
+		tagPos = self.prefix.find('@')
+		if tagPos == -1:
+			return self.prefix
+		else:
+			return self.prefix[:tagPos]+self.tag+self.prefix[tagPos:]
 
-	def compileSuffix(self):
+	def compiledSuffix(self):
 		""" Check suffix for '@' indicating position to add tag'"""
-		pass
+		tagPos = self.suffix.find('@')
+		if tagPos == -1:
+			return self.suffix
+		else:
+			return self.suffix[:tagPos]+self.tag+self.suffix[tagPos+1:]
 
 	def __repr__(self):
-		return "%s:%s  %s  %s" % (self.name,self.prefix,self.sequence.upper(),self.suffix)
+		return "%s:%s" % (self.name,self.oligoSequence())
+
+	def __str__(self):
+		#return "%s\t%0.2f\t%d" % (self.__repr__(),self.GC,len(self))
+		return "%s" % (self.__repr__())
 
 	def toFasta(self):
 		return ">%s\n%s" % (self.name,self.sequence)
@@ -44,21 +59,27 @@ class TileRNA:
 	def toBed(self):
 		pass
 
-	def getGC(self):
-		self.GC = sequencelib.gc_content(self.sequence)
+	def GC(self):
+		return sequencelib.gc_content(self.oligoSequence())
+		
+	def oligoSequence(self):
+		return self.compiledPrefix()+self.sequence+self.compiledSuffix()
 
 	def __hash__(self):
-		return hash(self.sequence.upper())
+		return hash(self.oligoSequence())
 
 	def __eq__(self,other):
-		if self.sequence.upper() == other.sequence.upper():
+		#if self.sequence.upper() == other.sequence.upper():
+		if self.oligoSequence() == other.oligoSequence():
 			return True
 		else:
 			return False
 
 	def __len__(self):
-		return len(self.prefix) + len(self.sequence) + len(self.suffix)
+		return len(self.oligoSequence())
 
+	def __cmp__(self,other):
+		return cmp((self.seqName, self.startPos, self.name),(other.seqName, other.startPos, other.name))
 
 
 def usage():
@@ -78,10 +99,10 @@ Oligo Options:
 	-s/--suffix             String added to each designed oligo 3' end (length is subtracted from max-tile-length)   [ default: M13 reverse (-24) ]
 	-l/--max-tile-length    Integer. Maximum length of designed oligos                                              [ default: 150 ]
 	-w/--tile-step          Integer. Window step size for designed oligos                                           [ default: 1 ]
-	-t/--tag				Logical argument whether or not to add tag to prefix or suffix position marked with '@'.	[default: F]
-	-e/--tag-length			Integer. Length of barcode 'tag' to add at position indicated by '@'.					[default: 10]
-	-n/--num-tags-per-tile	Integer. Number of unique tags to make per tile											[default: 5]
-
+	-t/--tag				Logical argument whether or not to add tag to prefix or suffix position marked with '@'.	[ default: F ]
+	-e/--tag-length			Integer. Length of barcode 'tag' to add at position indicated by '@'.					[ default: 10 ]
+	-n/--num-tags-per-tile	Integer. Number of unique tags to make per tile											[ default: 5 ]
+	-r/--restriction-sites 	String. Comma-separated list of restriction enzymes whose cutting sites are to be avoided.
 """)
 
 #######################
@@ -93,17 +114,27 @@ def onlyNucleic(seq,set=['a','c','g','t','u','A','C','G','T','U','n','N','@']):
 			return False
 	return True
 
-# def findUnique(tiles):
-#	return list(set(tiles))
-
 def findUnique(tiles):
-	seen = set()
-	res = []
-	for tile in tiles:
-		if tile not in seen:
-			seen.add(tile)
-			res.append(tile)
-	return res
+	return list(set(tiles))
+
+# def findUnique(tiles):
+# 	seen = set()
+# 	res = []
+# 	for tile in tiles:
+# 		if tile not in seen:
+# 			seen.add(tile)
+# 			res.append(tile)
+# 	return res
+
+def estimateAffixLength(sequence,tagLength):
+	tagHits = sequencelib.mcount(sequence, '@')
+	if tagHits == 0:
+		return len(sequence)
+	elif tagHits > 1:
+		raise TileError("""You can only have one instance of 'tag' per tile""")
+	elif tagHits == 1:
+		return len(sequence) + tagLength - 1 #-1 is required upone removal of '@' tag 
+
 
 def buildTags(numTags,tagLength,sites=None):
 	tmpTags = set()
@@ -113,7 +144,7 @@ def buildTags(numTags,tagLength,sites=None):
 			if hasRestrictionSites(tmpTag,sites):
 				continue
 		tmpTags.add(tmpTag)
-	return tmpTags
+	return list(tmpTags)
 
 def hasRestrictionSites(sequence,sites):
 	#Parse sites
@@ -137,23 +168,61 @@ def hasRestrictionSites(sequence,sites):
 	else:
 		return False
 
+def warnRestrictionSites(sequence,name,sites):
+	sites = sites.split(",")
+	rb = Restriction.RestrictionBatch(sites)
+
+	#Get Bio.Seq object
+	amb = IUPACAmbiguousDNA()
+	tmpSeq = Seq(sequence,amb)
+
+	#Search for sites
+	res = rb.search(tmpSeq)
+	
+	#Sum hits
+	totalSites = 0
+	for v in res.values():
+		totalSites += len(v)
+
+	if totalSites > 0:
+		print >>sys.stderr, "Warning: The following positions in '%s' will be masked from tiles due to incompatible restictions sites:" % (name)
+		pp(res)
+	else:
+		pass
+	
 
 #######################
 # Scan input sequence #
 #######################
 #TODO: Modify this so that it only gets the window of appropriate size.  We will add prefix and suffix afterwards.
 
-def scanSequence(sequence,seqName,tileStep=1,prefix='',suffix='',maxTileSize=150):
-	tileSize = maxTileSize-len(prefix)-len(suffix)
+def scanSequence(sequence,seqName,tileStep=1,tileSize=150):
 	tiles = []
-
+	
 	#Pre-compute number of chunks to emit
 	numOfChunks = ((len(sequence)-tileSize)/tileStep) + 1
 
     #Tile across sequence
 	for i in xrange(0,numOfChunks*tileStep,tileStep):
-		tiles.append(TileRNA(sequence=sequence[i:i+tileSize],seqName=seqName,startPos=i+1,prefix=prefix,suffix=suffix))
+		tiles.append(Tile(sequence=sequence[i:i+tileSize],seqName=seqName,startPos=i+1))
 	return tiles
+
+###################
+# Reporting
+###################
+
+def outputTable(tiles,outHandle=sys.stdout):
+	outputKeys=["name","seqName","startPos","oligoSequence","prefix","suffix","tag","GC"]
+	print >>outHandle, "\t".join(outputKeys)
+
+	for tile in tiles:
+		vals = []
+		for k in outputKeys:
+			v = getattr(tile,k)
+			if callable(v):
+				v = v()
+			vals.append(str(v))
+		print >>outHandle, "\t".join(vals)
 
 def main():
 	#######################
@@ -171,18 +240,25 @@ def main():
 		'SP6 promoter': 'CATACGATTTAGGTGACACTATAG',
 		'SP6 universal primer': 'ATTTAGGTGACACTATAG',
 		'VF2': 'tgccacctgacgtctaagaa',
-		'VR': 'attaccgcctttgagtgagc',
+		'VR': 'attaccgcctttgagtgagc'
+	}
+
+	MPRATags = {
+		'prefix': 'ACTGGCCGCTTCACTG',
+		'suffix': 'GGTACCTCTAGA@AGATCGGAAGAGCGTCG'
 	}
 
 	maxTileSize = 150
 	tileStep = 1
 	tagLength = 10
 	numTagsPerTile = 5
-	prefix = universalPrimers['T7 universal primer']
-	suffix = universalPrimers['M13 reverse sequencing primer (-24)']
+	prefix = MPRATags['prefix']
+	suffix = MPRATags['suffix']
+	sites = "KpnI,XbaI,SfiI"
 
+	#Argument handling
 	try:
-		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile="])
+		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites="])
 	except getopt.GetoptError as err:
 		print(err)
 		usage()
@@ -217,6 +293,8 @@ def main():
 			tagLength = int(a)
 		elif o in ("-n","--num-tags-per-tile"):
 			numTagsPerTile = int(a)
+		elif o in ("-r","--restriction-sites"):
+			sites = a.strip()
 		else:
 			assert False, "Unhandled option"
 	# Grab fname as remainder argument
@@ -227,23 +305,65 @@ def main():
 		usage()
 		sys.exit(2)
 		#print fname
-	#Find window size
-	tileSize = maxTileSize-len(prefix)-len(suffix)
 
-	#Main workflow
+	#Estimate prefix and suffix length
+	prefixLength = estimateAffixLength(prefix,tagLength)
+	suffixLength = estimateAffixLength(suffix,tagLength)
+
+	#Find window size
+	tileSize = maxTileSize-prefixLength-suffixLength
+
+	#Fetch all tile sequences
 	fastaIter = sequencelib.FastaIterator(handle)
 	tiles = []
 	for mySeq in fastaIter:
-		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,maxTileSize=maxTileSize,prefix=prefix,suffix=suffix)
+		#Warn about masked regions
+		warnRestrictionSites(mySeq['sequence'],mySeq['name'],sites)
+
+		#Get tiles from sequence
+		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,tileSize=tileSize)
 		tiles += tmpTiles
 
 	# Remove duplicate tile sequences
 	tiles = findUnique(tiles)
 
-	for tile in tiles:
-		print "%s\t%0.2f\t%d" % (tile,tile.GC,len(tile))
+	# Check tiles for restriction sites
+	if sites != None:
+		cleanTiles = set()
+		for tile in tiles:
+			if hasRestrictionSites(tile.sequence, sites):
+				continue
+			else:
+				cleanTiles.add(tile)
+		tiles = list(cleanTiles)
 
-	print len(tiles)
+	#determine number of tags needed
+	numTagsReq = len(tiles) * numTagsPerTile
+
+	tags = buildTags(numTagsReq,tagLength,sites=sites)
+
+	assert len(tags) == len(tiles) * numTagsPerTile
+
+	#Create numTagsPerTile tiles for each sequence
+	tmpTiles = set()
+	#Add prefix, suffix, and tag
+	for i in xrange(len(tiles)):
+		for j in xrange(numTagsPerTile):
+			tmpTile = copy.copy(tiles[i])
+			tmpTile.name = "%s:%d" % (tmpTile.name,j)
+			tmpTile.prefix = prefix
+			tmpTile.suffix = suffix
+			tmpTile.tag = tags.pop()
+			tmpTiles.add(tmpTile)
+
+	tiles = list(tmpTiles)
+	tiles.sort()
+
+	#Just for QC
+	#for i in xrange(10):
+	outputTable(tiles)
+
+	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
 
 def test():
 	fname = "test/Firre.fasta"
