@@ -105,14 +105,14 @@ def findUnique(tiles):
 			res.append(tile)
 	return res
 
-def buildTags(numTags,tagLength,sites):
+def buildTags(numTags,tagLength,sites=None):
 	tmpTags = set()
 	while len(tmpTags)<numTags:
 		tmpTag = sequencelib.GenRandomSeq(tagLength,type="DNA")
-		if hasRestrictionSites(tmpTag,sites):
-			continue
-		else:
-			tmpTags.add(sequencelib.GenRandomSeq(tagLength,type="DNA"))
+		if sites != None:
+			if hasRestrictionSites(tmpTag,sites):
+				continue
+		tmpTags.add(tmpTag)
 	return tmpTags
 
 def hasRestrictionSites(sequence,sites):
