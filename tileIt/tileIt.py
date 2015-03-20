@@ -295,6 +295,8 @@ def main():
 			numTagsPerTile = int(a)
 		elif o in ("-r","--restriction-sites"):
 			sites = a.strip()
+			if sites == "":
+				sites = None
 		else:
 			assert False, "Unhandled option"
 	# Grab fname as remainder argument
@@ -318,7 +320,8 @@ def main():
 	tiles = []
 	for mySeq in fastaIter:
 		#Warn about masked regions
-		warnRestrictionSites(mySeq['sequence'],mySeq['name'],sites)
+		if sites != None:
+			warnRestrictionSites(mySeq['sequence'],mySeq['name'],sites)
 
 		#Get tiles from sequence
 		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,tileSize=tileSize)
