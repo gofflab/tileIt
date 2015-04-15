@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import sequencelib,getopt,sys,re
 from Bio import Restriction
 from Bio.Seq import Seq
@@ -17,9 +16,11 @@ class TileError(Exception):
 		return repr(self.value)
 
 class Tile:
-	def __init__(self,sequence,seqName,startPos,prefix='',suffix='',tag=''):
+	def __init__(self,sequence,seqName,startPos,relSnpPos,allele,prefix='',suffix='',tag=''):
 		self.sequence = sequence
 		self.startPos = startPos
+		self.relSnpPos = relSnpPos
+		self.allele = allele
 		self.start = startPos
 		self.seqName = seqName
 		self.name = "%s:%d-%d" % (self.seqName,self.start,self.start+len(self.sequence))
@@ -151,7 +152,6 @@ def buildTags(numTags,tagLength,sites=None):
 			if hasRestrictionSites(tmpTag,sites):
 				continue
 		tmpTags.add(tmpTag)
-	#TODO: XbaI does not like 3' GA
 	return list(tmpTags)
 
 def hasRestrictionSites(sequence,sites):
@@ -374,7 +374,7 @@ def main():
 	#for i in xrange(10):
 	outputTable(tiles)
 
-	print >>sys.stderr, "There are a total of %d unique tiles.\n Oligo length: %d\n Prefix Length: %d\n Tile Length: %d\n Suffix Length: %d " % (len(tiles),maxTileSize,prefixLength,maxTileSize-prefixLength-suffixLength,suffixLength)
+	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
 
 def test():
 	fname = "test/Firre.fasta"
