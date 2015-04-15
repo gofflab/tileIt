@@ -147,6 +147,8 @@ def buildTags(numTags,tagLength,sites=None):
 	tmpTags = set()
 	while len(tmpTags)<numTags:
 		tmpTag = sequencelib.GenRandomSeq(tagLength,type="DNA")
+		if tmpTag[:2] == "TC": 	# This is specific to XbaI sites...the first two bases after XbaI cannot be TC because the 'GAtc' motif is a target for dam methylation
+				continue 		# Going to keep this in here because it shouldn't mess up things to badly anyways.
 		if sites != None:
 			if hasRestrictionSites(tmpTag,sites):
 				continue
