@@ -54,8 +54,8 @@ class Tile:
 		#return "%s\t%0.2f\t%d" % (self.__repr__(),self.GC,len(self))
 		return "%s" % (self.__repr__())
 
-	def toFasta(self):
-		return ">%s\n%s" % (self.name,self.sequence)
+	# def toFasta(self):
+	# 	return ">%s\n%s" % (self.name,self.sequence)
 
 	def toBed(self):
 		pass
@@ -110,6 +110,7 @@ Oligo Options:
 	-e/--tag-length			Integer. Length of barcode 'tag' to add at position indicated by '@'.					[ default: 10 ]
 	-n/--num-tags-per-tile	Integer. Number of unique tags to make per tile											[ default: 5 ]
 	-r/--restriction-sites 	String. Comma-separated list of restriction enzymes whose cutting sites are to be avoided.
+	-f/--fasta 				Output tile sequences in fasta format to file (e.g. '-f tile_sequences.fa')
 """)
 
 #######################
@@ -147,13 +148,12 @@ def buildTags(numTags,tagLength,sites=None):
 	tmpTags = set()
 	while len(tmpTags)<numTags:
 		tmpTag = sequencelib.GenRandomSeq(tagLength,type="DNA")
-		if tmpTag[:2] == "TC": 	# This is specific to XbaI sites...the first two bases after XbaI cannot be TC because the 'GAtc' motif is a target for dam methylation
+		if tmpTag[:2] == "TC": 	# This is specific to XbaI sites...the first two bases after XbaI cannot be 'TC' because the 'GAtc' motif is a target for dam methylation
 				continue 		# Going to keep this in here because it shouldn't mess up things to badly anyways.
 		if sites != None:
 			if hasRestrictionSites(tmpTag,sites):
 				continue
 		tmpTags.add(tmpTag)
-	#TODO: XbaI does not like 3' GA
 	return list(tmpTags)
 
 def hasRestrictionSites(sequence,sites):
@@ -234,6 +234,11 @@ def outputTable(tiles,outHandle=sys.stdout):
 			vals.append(str(v))
 		print >>outHandle, "\t".join(vals)
 
+def outputFasta(tiles,outHandle=sys.stdout):
+	"""Outputs just the tile sequence (not prefix or suffix) to fasta format suitable for input to aligner"""
+	for tile in tiles:
+		print >>outHandle, tile.tileFasta()
+
 def main():
 	#######################
 	# Variables
@@ -265,10 +270,11 @@ def main():
 	prefix = MPRATags['prefix']
 	suffix = MPRATags['suffix']
 	sites = "KpnI,XbaI,SfiI"
+	fastaOutput = False
 
 	#Argument handling
 	try:
-		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites="])
+		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:f:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites=","--fasta="])
 	except getopt.GetoptError as err:
 		print(err)
 		usage()
@@ -307,6 +313,9 @@ def main():
 			sites = a.strip()
 			if sites == "":
 				sites = None
+		elif o in ("-f","--fasta"):
+			fastaOutput = True
+			fastaOutFile = a.strip()
 		else:
 			assert False, "Unhandled option"
 	# Grab fname as remainder argument
@@ -375,6 +384,11 @@ def main():
 	#Just for QC
 	#for i in xrange(10):
 	outputTable(tiles)
+	
+	if(fastaOutput):
+		fastaHandle = open(fastaOutFile,'w')
+		outputFasta(tiles,fastaHandle)
+		fastaHandle.close()
 
 	print >>sys.stderr, "There are a total of %d unique tiles.\n Oligo length: %d\n Prefix Length: %d\n Tile Length: %d\n Suffix Length: %d " % (len(tiles),maxTileSize,prefixLength,maxTileSize-prefixLength-suffixLength,suffixLength)
 
