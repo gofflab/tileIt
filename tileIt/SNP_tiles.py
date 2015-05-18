@@ -11,7 +11,8 @@
 #
 ###########################################
 
-
+import urllib2
+from xml.etree import ElementTree
 import sequencelib,getopt,sys,re
 from Bio import Restriction
 from Bio.Seq import Seq
@@ -19,6 +20,55 @@ from Bio.Alphabet.IUPAC import IUPACAmbiguousDNA
 from itertools import tee,izip
 import copy
 from utils import pp
+
+#######################
+# Variables
+#######################
+universalPrimers = {
+	'M13 forward sequencing primer (-20)': 'GTAAAACGACGGCCAGT',
+	'M13 forward sequencing primer (-40)': 'GTTTTCCCAGTCACGAC',
+	'M13 forward sequencing primer (-47)': 'CGCCAGGGTTTTCCCAGTCACGAC',
+	'M13 reverse sequencing primer (-24)': 'AACAGCTATGACCATG',
+	'M13 reverse sequencing primer (-48)': 'AGCGGATAACAATTTCACACAGGA',
+	'T3 promoter': 'ATTAACCCTCACTAAAGGGA',
+	'T7 universal primer': 'TAATACGACTCACTATAGGG',
+	'T7 Terminator': 'GCTAGTTATTGCTCAGCGG',
+	'SP6 promoter': 'CATACGATTTAGGTGACACTATAG',
+	'SP6 universal primer': 'ATTTAGGTGACACTATAG',
+	'VF2': 'tgccacctgacgtctaagaa',
+	'VR': 'attaccgcctttgagtgagc'
+}
+
+MPRATags = {
+	'prefix': 'ACTGGCCGCTTCACTG',
+	'suffix': 'GGTACCTCTAGA@AGATCGGAAGAGCGTCG'
+}
+
+maxTileSize = 150
+tileStep = 1
+tagLength = 10
+numTagsPerTile = 5
+prefix = MPRATags['prefix']
+suffix = MPRATags['suffix']
+sites = "KpnI,XbaI,SfiI"
+
+
+########################
+# Fetch Sequence from UCSC DAS
+########################
+
+def fetchSequence(chrom="chr1",pos=100050,halfWidth=50):
+	#chrom = 'chr1'
+	start = pos-halfWidth
+	end = pos+halfWidth
+	urlbase = "http://genome.ucsc.edu/cgi-bin/das/hg19/dna?segment=%s:%d,%d"
+	request = urllib2.Request(urlbase % (chrom, start, end))
+	u = urllib2.urlopen(request)
+	tree = ElementTree.parse(u)
+	rootElem = tree.getroot()
+	sequenceElem = rootElem.find("SEQUENCE")
+	DNAElem = sequenceElem.find("DNA")
+	return DNAElem.text.replace("\n","")
 
 # Base class for a guide RNA
 # Takes a 23mer 20 Guide + 3 PAM and processes it accordingly
@@ -244,37 +294,123 @@ def outputTable(tiles,outHandle=sys.stdout):
 		print >>outHandle, "\t".join(vals)
 
 def main():
-	#######################
-	# Variables
-	#######################
-	universalPrimers = {
-		'M13 forward sequencing primer (-20)': 'GTAAAACGACGGCCAGT',
-		'M13 forward sequencing primer (-40)': 'GTTTTCCCAGTCACGAC',
-		'M13 forward sequencing primer (-47)': 'CGCCAGGGTTTTCCCAGTCACGAC',
-		'M13 reverse sequencing primer (-24)': 'AACAGCTATGACCATG',
-		'M13 reverse sequencing primer (-48)': 'AGCGGATAACAATTTCACACAGGA',
-		'T3 promoter': 'ATTAACCCTCACTAAAGGGA',
-		'T7 universal primer': 'TAATACGACTCACTATAGGG',
-		'T7 Terminator': 'GCTAGTTATTGCTCAGCGG',
-		'SP6 promoter': 'CATACGATTTAGGTGACACTATAG',
-		'SP6 universal primer': 'ATTTAGGTGACACTATAG',
-		'VF2': 'tgccacctgacgtctaagaa',
-		'VR': 'attaccgcctttgagtgagc'
-	}
+	#Argument handling
+	try:
+		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites="])
+	except getopt.GetoptError as err:
+		print(err)
+		usage()
+		sys.exit(2)
+	output = None
+	verbose = False
+	for o,a in opts:
+		if o == "-v":
+			verbose = True
+		elif o in ("-h","--help"):
+			usage()
+			sys.exit()
+		elif o in ("-o","--output"):
+			output = a
+		elif o in ("-p","--prefix"):
+			if onlyNucleic(a):
+				prefix = a
+			else:
+				raise(TileError,"Prefix is not a valid nucleic acid sequence.")
+		elif o in ("-s","--suffix"):
+			if onlyNucleic(a):
+				suffix = a
+			else:
+				raise(TileError,"Suffix is not a valid nucleic acid sequence.")
+		elif o in ("-l","--max-tile-length"):
+			maxTileSize = int(a)
+		elif o in ("-w","--tile-step"):
+			tileStep = int(a)
+		elif o in ("-t","--tag"):
+			addTag = True
+		elif o in ("-e","--tag-length"):
+			tagLength = int(a)
+		elif o in ("-n","--num-tags-per-tile"):
+			numTagsPerTile = int(a)
+		elif o in ("-r","--restriction-sites"):
+			sites = a.strip()
+			if sites == "":
+				sites = None
+		else:
+			assert False, "Unhandled option"
+	
+	# Grab fname as remainder argument
+	try:
+		fname = str(args[0])
+		handle = open(fname,'r')
+	except:
+		usage()
+		sys.exit(2)
+		#print fname
 
-	MPRATags = {
-		'prefix': 'ACTGGCCGCTTCACTG',
-		'suffix': 'GGTACCTCTAGA@AGATCGGAAGAGCGTCG'
-	}
+	#Estimate prefix and suffix length
+	prefixLength = estimateAffixLength(prefix,tagLength)
+	suffixLength = estimateAffixLength(suffix,tagLength)
 
-	maxTileSize = 150
-	tileStep = 1
-	tagLength = 10
-	numTagsPerTile = 5
-	prefix = MPRATags['prefix']
-	suffix = MPRATags['suffix']
-	sites = "KpnI,XbaI,SfiI"
+	#Find window size
+	tileSize = maxTileSize-prefixLength-suffixLength
+	halfWidth = floor(tileSize/2)
 
+	#Read in input file
+
+	#Fetch all tile sequences
+	fastaIter = sequencelib.FastaIterator(handle)
+	tiles = []
+	for mySeq in fastaIter:
+		#Warn about masked regions
+		if sites != None:
+			warnRestrictionSites(mySeq['sequence'],mySeq['name'],sites)
+
+		#Get tiles from sequence
+		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,tileSize=tileSize)
+		tiles += tmpTiles
+
+	# Remove duplicate tile sequences
+	tiles = findUnique(tiles)
+
+	# Check tiles for restriction sites
+	if sites != None:
+		cleanTiles = set()
+		for tile in tiles:
+			if hasRestrictionSites(tile.sequence, sites):
+				continue
+			else:
+				cleanTiles.add(tile)
+		tiles = list(cleanTiles)
+
+	#determine number of tags needed
+	numTagsReq = len(tiles) * numTagsPerTile
+
+	tags = buildTags(numTagsReq,tagLength,sites=sites)
+
+	assert len(tags) == len(tiles) * numTagsPerTile
+
+	#Create numTagsPerTile tiles for each sequence
+	tmpTiles = set()
+	#Add prefix, suffix, and tag
+	for i in xrange(len(tiles)):
+		for j in xrange(numTagsPerTile):
+			tmpTile = copy.copy(tiles[i])
+			tmpTile.name = "%s:%d" % (tmpTile.name,j)
+			tmpTile.prefix = prefix
+			tmpTile.suffix = suffix
+			tmpTile.tag = tags.pop()
+			tmpTiles.add(tmpTile)
+
+	tiles = list(tmpTiles)
+	tiles.sort()
+
+	#Just for QC
+	#for i in xrange(10):
+	outputTable(tiles)
+
+	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
+
+def test():
 	#Argument handling
 	try:
 		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites="])
@@ -387,22 +523,5 @@ def main():
 
 	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
 
-def test():
-	fname = "test/Firre.fasta"
-	handle = open(fname,'r')
-	fastaIter = sequencelib.FastaIterator(handle)
-
-	mySeq = fastaIter.next()
-	tiles = scanSequence(mySeq['sequence'],mySeq['name'])
-
-	print len(tiles)
-	# Remove duplicate tile sequences
-	tiles = findUnique(tiles)
-
-	# for tile in tiles:
-	# 	print "%s\t%0.2f\t%d" % (tile,tile.GC,len(tile))
-
-	print len(tiles)
-
 if __name__ == "__main__":
-	main()
+	test()
