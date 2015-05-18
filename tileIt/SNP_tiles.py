@@ -20,55 +20,8 @@ from Bio.Alphabet.IUPAC import IUPACAmbiguousDNA
 from itertools import tee,izip
 import copy
 from utils import pp
-
-#######################
-# Variables
-#######################
-universalPrimers = {
-	'M13 forward sequencing primer (-20)': 'GTAAAACGACGGCCAGT',
-	'M13 forward sequencing primer (-40)': 'GTTTTCCCAGTCACGAC',
-	'M13 forward sequencing primer (-47)': 'CGCCAGGGTTTTCCCAGTCACGAC',
-	'M13 reverse sequencing primer (-24)': 'AACAGCTATGACCATG',
-	'M13 reverse sequencing primer (-48)': 'AGCGGATAACAATTTCACACAGGA',
-	'T3 promoter': 'ATTAACCCTCACTAAAGGGA',
-	'T7 universal primer': 'TAATACGACTCACTATAGGG',
-	'T7 Terminator': 'GCTAGTTATTGCTCAGCGG',
-	'SP6 promoter': 'CATACGATTTAGGTGACACTATAG',
-	'SP6 universal primer': 'ATTTAGGTGACACTATAG',
-	'VF2': 'tgccacctgacgtctaagaa',
-	'VR': 'attaccgcctttgagtgagc'
-}
-
-MPRATags = {
-	'prefix': 'ACTGGCCGCTTCACTG',
-	'suffix': 'GGTACCTCTAGA@AGATCGGAAGAGCGTCG'
-}
-
-maxTileSize = 150
-tileStep = 1
-tagLength = 10
-numTagsPerTile = 5
-prefix = MPRATags['prefix']
-suffix = MPRATags['suffix']
-sites = "KpnI,XbaI,SfiI"
-
-
-########################
-# Fetch Sequence from UCSC DAS
-########################
-
-def fetchSequence(chrom="chr1",pos=100050,halfWidth=50):
-	#chrom = 'chr1'
-	start = pos-halfWidth
-	end = pos+halfWidth
-	urlbase = "http://genome.ucsc.edu/cgi-bin/das/hg19/dna?segment=%s:%d,%d"
-	request = urllib2.Request(urlbase % (chrom, start, end))
-	u = urllib2.urlopen(request)
-	tree = ElementTree.parse(u)
-	rootElem = tree.getroot()
-	sequenceElem = rootElem.find("SEQUENCE")
-	DNAElem = sequenceElem.find("DNA")
-	return DNAElem.text.replace("\n","")
+from intervallib import parseBedSNP,Interval 
+import math
 
 # Base class for a guide RNA
 # Takes a 23mer 20 Guide + 3 PAM and processes it accordingly
@@ -151,12 +104,26 @@ class Tile:
 		"""Only write tile sequence to fasta"""
 		return ">%s\n%s" % (self.name,self.sequence)
 
+class SNPTile(Tile):
+	def __init__(self,sequence,seqName,startPos,snpPos,refAllele='X',nonrefAllele='Y',prefix='',suffix='',tag=''):
+		Tile.__init__(self,sequence=sequence,seqName=seqName,startPos=startPos,prefix=prefix,suffix=suffix,tag=tag)
+		self.snpPos=snpPos
+		self.refAllele=refAllele
+		self.nonrefAllele=nonrefAllele
+		self.snpIndexPos=len(self.sequence)/2
+
+	def oligoSequence(self,allele="ref"):
+		if allele == "ref":
+			return self.compiledPrefix()+self.sequence[:self.snpIndexPos]+self.refAllele+self.sequence[self.snpIndexPos+1:]+self.compiledSuffix()
+		elif allele == "nonref":
+			return self.compiledPrefix()+self.sequence[:self.snpIndexPos]+self.nonrefAllele+self.sequence[self.snpIndexPos+1:]+self.compiledSuffix()
+
 def usage():
 	sys.stderr.write("""
-TileIt: simply python utility for oligo sequence generation from fasta files
+TileIt: simply python utility for oligo sequence generation from SNP positions in bed files
 -----------------------------------------------------------------------------
 Usage:
-	tileIt.py [options] <filename.fasta>
+	SNP_tiles.py [options] <filename.bed>
 
 General Options:
 	-h/--help               Print this helpful help page     [ default: NA ]
@@ -277,6 +244,25 @@ def scanSequence(sequence,seqName,tileStep=1,tileSize=150):
 	return tiles
 
 ###################
+# Make tiles from SNP flanks
+###################
+
+def makeTileFromSnp(snp,halfWidth=50):
+    #chrom = 'chr1'
+    flankStart = snp.start-halfWidth
+    flankEnd = snp.start+halfWidth
+    urlbase = "http://genome.ucsc.edu/cgi-bin/das/hg19/dna?segment=%s:%d,%d"
+    request = urllib2.Request(urlbase % (snp.chr,flankStart,flankEnd))
+    u = urllib2.urlopen(request)
+    tree = ElementTree.parse(u)
+    rootElem = tree.getroot()
+    sequenceElem = rootElem.find("SEQUENCE")
+    DNAElem = sequenceElem.find("DNA")
+    sequence = DNAElem.text.replace("\n","")
+    tile = SNPTile(sequence=sequence,seqName=snp.name,startPos=flankStart,snpPos=snp.start)
+    return tile
+
+###################
 # Reporting
 ###################
 
@@ -293,124 +279,156 @@ def outputTable(tiles,outHandle=sys.stdout):
 			vals.append(str(v))
 		print >>outHandle, "\t".join(vals)
 
-def main():
-	#Argument handling
-	try:
-		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites="])
-	except getopt.GetoptError as err:
-		print(err)
-		usage()
-		sys.exit(2)
-	output = None
-	verbose = False
-	for o,a in opts:
-		if o == "-v":
-			verbose = True
-		elif o in ("-h","--help"):
-			usage()
-			sys.exit()
-		elif o in ("-o","--output"):
-			output = a
-		elif o in ("-p","--prefix"):
-			if onlyNucleic(a):
-				prefix = a
-			else:
-				raise(TileError,"Prefix is not a valid nucleic acid sequence.")
-		elif o in ("-s","--suffix"):
-			if onlyNucleic(a):
-				suffix = a
-			else:
-				raise(TileError,"Suffix is not a valid nucleic acid sequence.")
-		elif o in ("-l","--max-tile-length"):
-			maxTileSize = int(a)
-		elif o in ("-w","--tile-step"):
-			tileStep = int(a)
-		elif o in ("-t","--tag"):
-			addTag = True
-		elif o in ("-e","--tag-length"):
-			tagLength = int(a)
-		elif o in ("-n","--num-tags-per-tile"):
-			numTagsPerTile = int(a)
-		elif o in ("-r","--restriction-sites"):
-			sites = a.strip()
-			if sites == "":
-				sites = None
-		else:
-			assert False, "Unhandled option"
+# def main():
+# 	#Argument handling
+# 	try:
+# 		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites="])
+# 	except getopt.GetoptError as err:
+# 		print(err)
+# 		usage()
+# 		sys.exit(2)
+# 	output = None
+# 	verbose = False
+# 	for o,a in opts:
+# 		if o == "-v":
+# 			verbose = True
+# 		elif o in ("-h","--help"):
+# 			usage()
+# 			sys.exit()
+# 		elif o in ("-o","--output"):
+# 			output = a
+# 		elif o in ("-p","--prefix"):
+# 			if onlyNucleic(a):
+# 				prefix = a
+# 			else:
+# 				raise(TileError,"Prefix is not a valid nucleic acid sequence.")
+# 		elif o in ("-s","--suffix"):
+# 			if onlyNucleic(a):
+# 				suffix = a
+# 			else:
+# 				raise(TileError,"Suffix is not a valid nucleic acid sequence.")
+# 		elif o in ("-l","--max-tile-length"):
+# 			maxTileSize = int(a)
+# 		elif o in ("-w","--tile-step"):
+# 			tileStep = int(a)
+# 		elif o in ("-t","--tag"):
+# 			addTag = True
+# 		elif o in ("-e","--tag-length"):
+# 			tagLength = int(a)
+# 		elif o in ("-n","--num-tags-per-tile"):
+# 			numTagsPerTile = int(a)
+# 		elif o in ("-r","--restriction-sites"):
+# 			sites = a.strip()
+# 			if sites == "":
+# 				sites = None
+# 		else:
+# 			assert False, "Unhandled option"
 	
-	# Grab fname as remainder argument
-	try:
-		fname = str(args[0])
-		handle = open(fname,'r')
-	except:
-		usage()
-		sys.exit(2)
-		#print fname
+# 	# Grab fname as remainder argument
+# 	try:
+# 		fname = str(args[0])
+# 		handle = open(fname,'r')
+# 	except:
+# 		usage()
+# 		sys.exit(2)
+# 		#print fname
 
-	#Estimate prefix and suffix length
-	prefixLength = estimateAffixLength(prefix,tagLength)
-	suffixLength = estimateAffixLength(suffix,tagLength)
+# 	#Estimate prefix and suffix length
+# 	prefixLength = estimateAffixLength(prefix,tagLength)
+# 	suffixLength = estimateAffixLength(suffix,tagLength)
 
-	#Find window size
-	tileSize = maxTileSize-prefixLength-suffixLength
-	halfWidth = floor(tileSize/2)
+# 	#Find window size
+# 	tileSize = maxTileSize-prefixLength-suffixLength
+# 	halfWidth = floor(tileSize/2)
 
-	#Read in input file
+# 	#Read in input file
 
-	#Fetch all tile sequences
-	fastaIter = sequencelib.FastaIterator(handle)
-	tiles = []
-	for mySeq in fastaIter:
-		#Warn about masked regions
-		if sites != None:
-			warnRestrictionSites(mySeq['sequence'],mySeq['name'],sites)
+# 	#Fetch all tile sequences
+# 	fastaIter = sequencelib.FastaIterator(handle)
+# 	tiles = []
+# 	for mySeq in fastaIter:
+# 		#Warn about masked regions
+# 		if sites != None:
+# 			warnRestrictionSites(mySeq['sequence'],mySeq['name'],sites)
 
-		#Get tiles from sequence
-		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,tileSize=tileSize)
-		tiles += tmpTiles
+# 		#Get tiles from sequence
+# 		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,tileSize=tileSize)
+# 		tiles += tmpTiles
 
-	# Remove duplicate tile sequences
-	tiles = findUnique(tiles)
+# 	# Remove duplicate tile sequences
+# 	tiles = findUnique(tiles)
 
-	# Check tiles for restriction sites
-	if sites != None:
-		cleanTiles = set()
-		for tile in tiles:
-			if hasRestrictionSites(tile.sequence, sites):
-				continue
-			else:
-				cleanTiles.add(tile)
-		tiles = list(cleanTiles)
+# 	# Check tiles for restriction sites
+# 	if sites != None:
+# 		cleanTiles = set()
+# 		for tile in tiles:
+# 			if hasRestrictionSites(tile.sequence, sites):
+# 				continue
+# 			else:
+# 				cleanTiles.add(tile)
+# 		tiles = list(cleanTiles)
 
-	#determine number of tags needed
-	numTagsReq = len(tiles) * numTagsPerTile
+# 	#determine number of tags needed
+# 	numTagsReq = len(tiles) * numTagsPerTile
 
-	tags = buildTags(numTagsReq,tagLength,sites=sites)
+# 	tags = buildTags(numTagsReq,tagLength,sites=sites)
 
-	assert len(tags) == len(tiles) * numTagsPerTile
+# 	assert len(tags) == len(tiles) * numTagsPerTile
 
-	#Create numTagsPerTile tiles for each sequence
-	tmpTiles = set()
-	#Add prefix, suffix, and tag
-	for i in xrange(len(tiles)):
-		for j in xrange(numTagsPerTile):
-			tmpTile = copy.copy(tiles[i])
-			tmpTile.name = "%s:%d" % (tmpTile.name,j)
-			tmpTile.prefix = prefix
-			tmpTile.suffix = suffix
-			tmpTile.tag = tags.pop()
-			tmpTiles.add(tmpTile)
+# 	#Create numTagsPerTile tiles for each sequence
+# 	tmpTiles = set()
+# 	#Add prefix, suffix, and tag
+# 	for i in xrange(len(tiles)):
+# 		for j in xrange(numTagsPerTile):
+# 			tmpTile = copy.copy(tiles[i])
+# 			tmpTile.name = "%s:%d" % (tmpTile.name,j)
+# 			tmpTile.prefix = prefix
+# 			tmpTile.suffix = suffix
+# 			tmpTile.tag = tags.pop()
+# 			tmpTiles.add(tmpTile)
 
-	tiles = list(tmpTiles)
-	tiles.sort()
+# 	tiles = list(tmpTiles)
+# 	tiles.sort()
 
-	#Just for QC
-	#for i in xrange(10):
-	outputTable(tiles)
+# 	#Just for QC
+# 	#for i in xrange(10):
+# 	outputTable(tiles)
 
-	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
+# 	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
 
 def test():
+	#######################
+	# Variables
+	#######################
+	universalPrimers = {
+		'M13 forward sequencing primer (-20)': 'GTAAAACGACGGCCAGT',
+		'M13 forward sequencing primer (-40)': 'GTTTTCCCAGTCACGAC',
+		'M13 forward sequencing primer (-47)': 'CGCCAGGGTTTTCCCAGTCACGAC',
+		'M13 reverse sequencing primer (-24)': 'AACAGCTATGACCATG',
+		'M13 reverse sequencing primer (-48)': 'AGCGGATAACAATTTCACACAGGA',
+		'T3 promoter': 'ATTAACCCTCACTAAAGGGA',
+		'T7 universal primer': 'TAATACGACTCACTATAGGG',
+		'T7 Terminator': 'GCTAGTTATTGCTCAGCGG',
+		'SP6 promoter': 'CATACGATTTAGGTGACACTATAG',
+		'SP6 universal primer': 'ATTTAGGTGACACTATAG',
+		'VF2': 'tgccacctgacgtctaagaa',
+		'VR': 'attaccgcctttgagtgagc'
+	}
+
+	MPRATags = {
+		'prefix': 'ACTGGCCGCTTCACTG',
+		'suffix': 'GGTACCTCTAGA@AGATCGGAAGAGCGTCG'
+	}
+
+	maxTileSize = 150
+	tileStep = 1
+	tagLength = 10
+	numTagsPerTile = 5
+	prefix = MPRATags['prefix']
+	suffix = MPRATags['suffix']
+	sites = "KpnI,XbaI,SfiI"
+
+
 	#Argument handling
 	try:
 		opts,args = getopt.getopt(sys.argv[1:],"ho:vp:s:l:w:te:n:r:",["help","output=","verbose","prefix=","suffix=","max-tile-length=","tile-step=","tag","tag-length=","num-tags-per-tile=","restriction-sites="])
@@ -457,7 +475,7 @@ def test():
 	# Grab fname as remainder argument
 	try:
 		fname = str(args[0])
-		handle = open(fname,'r')
+		#handle = open(fname,'r')
 	except:
 		usage()
 		sys.exit(2)
@@ -469,21 +487,22 @@ def test():
 
 	#Find window size
 	tileSize = maxTileSize-prefixLength-suffixLength
+	halfWidth = math.floor(tileSize/2)
 
-	#Fetch all tile sequences
-	fastaIter = sequencelib.FastaIterator(handle)
+	#Read in input bed file into list
+	snps = []
+	inputIter = parseBedSNP(fname)
+	for snp in inputIter:
+		snps.append(snp)
+
 	tiles = []
-	for mySeq in fastaIter:
-		#Warn about masked regions
+	for snp in snps[:50]:
+		tile = makeTileFromSnp(snp,halfWidth=halfWidth)
+		tiles.append(tile)
+
+	for tile in tiles:
 		if sites != None:
-			warnRestrictionSites(mySeq['sequence'],mySeq['name'],sites)
-
-		#Get tiles from sequence
-		tmpTiles = scanSequence(mySeq['sequence'],mySeq['name'],tileStep=tileStep,tileSize=tileSize)
-		tiles += tmpTiles
-
-	# Remove duplicate tile sequences
-	tiles = findUnique(tiles)
+			warnRestrictionSites(tile.sequence,tile.name,sites)
 
 	# Check tiles for restriction sites
 	if sites != None:
@@ -504,6 +523,7 @@ def test():
 
 	#Create numTagsPerTile tiles for each sequence
 	tmpTiles = set()
+	
 	#Add prefix, suffix, and tag
 	for i in xrange(len(tiles)):
 		for j in xrange(numTagsPerTile):
@@ -521,7 +541,6 @@ def test():
 	#for i in xrange(10):
 	outputTable(tiles)
 
-	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
 
 if __name__ == "__main__":
 	test()

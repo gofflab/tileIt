@@ -36,8 +36,7 @@ def FastaIterator(handle):
         if not line : return #StopIteration
     assert False, "Should not reach this line"
     
-bed_fields = ['chr','start','end','label','score','strand']
-            
+
 ###
 #Generic Sequence tools
 ###
