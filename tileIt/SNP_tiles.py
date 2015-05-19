@@ -104,8 +104,8 @@ class Tile:
 		return ">%s\n%s" % (self.name,self.sequence)
 
 class SNPTile(Tile):
-	def __init__(self,sequence,seqName,startPos,snpPos,refAllele='X',nonrefAllele='Y',prefix='',suffix='',tag=''):
-		Tile.__init__(self,sequence=sequence,seqName=seqName,startPos=startPos,prefix=prefix,suffix=suffix,tag=tag)
+	def __init__(self,sequence,seqName,snpPos,alleles,snpClass,prefix='',suffix='',tag=''):
+		Tile.__init__(self,sequence=sequence,seqName=seqName,startPos=1,prefix=prefix,suffix=suffix,tag=tag)
 		self.snpPos=snpPos
 		self.refAllele=refAllele
 		self.nonrefAllele=nonrefAllele
@@ -120,10 +120,10 @@ class SNPTile(Tile):
 
 def usage():
 	sys.stderr.write("""
-TileIt: simply python utility for oligo sequence generation from SNP positions in bed files
+TileIt: Python utility for oligo sequence generation from SNP 'rs' identifiers in input file <filename.txt>
 -----------------------------------------------------------------------------
 Usage:
-	SNP_tiles.py [options] <filename.bed>
+	SNP_tiles.py [options] <filename.txt>
 
 General Options:
 	-h/--help               Print this helpful help page     [ default: NA ]
