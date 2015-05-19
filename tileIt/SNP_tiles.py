@@ -13,14 +13,13 @@
 
 import urllib2
 from xml.etree import ElementTree
-import sequencelib,getopt,sys,re
+import sequencelib,getopt,sys,re,intervallib
 from Bio import Restriction
 from Bio.Seq import Seq
 from Bio.Alphabet.IUPAC import IUPACAmbiguousDNA
 from itertools import tee,izip
 import copy
 from utils import pp
-from intervallib import parseBedSNP,Interval 
 import math
 
 # Base class for a guide RNA
@@ -117,6 +116,7 @@ class SNPTile(Tile):
 			return self.compiledPrefix()+self.sequence[:self.snpIndexPos]+self.refAllele+self.sequence[self.snpIndexPos+1:]+self.compiledSuffix()
 		elif allele == "nonref":
 			return self.compiledPrefix()+self.sequence[:self.snpIndexPos]+self.nonrefAllele+self.sequence[self.snpIndexPos+1:]+self.compiledSuffix()
+
 
 def usage():
 	sys.stderr.write("""
@@ -489,57 +489,74 @@ def test():
 	tileSize = maxTileSize-prefixLength-suffixLength
 	halfWidth = math.floor(tileSize/2)
 
-	#Read in input bed file into list
+	# #Read in input bed file into list
+	# snps = []
+	# inputIter = parseBedSNP(fname)
+	# for snp in inputIter:
+	# 	snps.append(snp)
+
+	# Read in input file (list of 'rs' ids)
+	rsIds = set()
+	inputHandle = open(fname,'r')
+	for line in inputHandle:
+		rsIds.add(line.rstrip())
+	rsIds = list(rsIds)
+
+	# Get dbSNP objects from rsIds
 	snps = []
-	inputIter = parseBedSNP(fname)
-	for snp in inputIter:
-		snps.append(snp)
+	for rsid in rsIds[:50]:
+		print >>sys.stderr, rsid
+		snps.append(intervallib.dbSNP(name=rsid))
 
-	tiles = []
-	for snp in snps[:50]:
-		tile = makeTileFromSnp(snp,halfWidth=halfWidth)
-		tiles.append(tile)
+	for snp in snps:
+		print >>sys.stderr, "%s\t%s" % (snp.sequence[snp.snpPos],snp.alleles)
 
-	for tile in tiles:
-		if sites != None:
-			warnRestrictionSites(tile.sequence,tile.name,sites)
 
-	# Check tiles for restriction sites
-	if sites != None:
-		cleanTiles = set()
-		for tile in tiles:
-			if hasRestrictionSites(tile.sequence, sites):
-				continue
-			else:
-				cleanTiles.add(tile)
-		tiles = list(cleanTiles)
+	# tiles = []
+	# for snp in snps:
+	# 	tile = makeTileFromSnp(snp,halfWidth=halfWidth)
+	# 	tiles.append(tile)
 
-	#determine number of tags needed
-	numTagsReq = len(tiles) * numTagsPerTile
+	# for tile in tiles:
+	# 	if sites != None:
+	# 		warnRestrictionSites(tile.sequence,tile.name,sites)
 
-	tags = buildTags(numTagsReq,tagLength,sites=sites)
+	# # Check tiles for restriction sites
+	# if sites != None:
+	# 	cleanTiles = set()
+	# 	for tile in tiles:
+	# 		if hasRestrictionSites(tile.sequence, sites):
+	# 			continue
+	# 		else:
+	# 			cleanTiles.add(tile)
+	# 	tiles = list(cleanTiles)
 
-	assert len(tags) == len(tiles) * numTagsPerTile
+	# #determine number of tags needed
+	# numTagsReq = len(tiles) * numTagsPerTile
 
-	#Create numTagsPerTile tiles for each sequence
-	tmpTiles = set()
+	# tags = buildTags(numTagsReq,tagLength,sites=sites)
+
+	# assert len(tags) == len(tiles) * numTagsPerTile
+
+	# #Create numTagsPerTile tiles for each sequence
+	# tmpTiles = set()
 	
-	#Add prefix, suffix, and tag
-	for i in xrange(len(tiles)):
-		for j in xrange(numTagsPerTile):
-			tmpTile = copy.copy(tiles[i])
-			tmpTile.name = "%s:%d" % (tmpTile.name,j)
-			tmpTile.prefix = prefix
-			tmpTile.suffix = suffix
-			tmpTile.tag = tags.pop()
-			tmpTiles.add(tmpTile)
+	# #Add prefix, suffix, and tag
+	# for i in xrange(len(tiles)):
+	# 	for j in xrange(numTagsPerTile):
+	# 		tmpTile = copy.copy(tiles[i])
+	# 		tmpTile.name = "%s:%d" % (tmpTile.name,j)
+	# 		tmpTile.prefix = prefix
+	# 		tmpTile.suffix = suffix
+	# 		tmpTile.tag = tags.pop()
+	# 		tmpTiles.add(tmpTile)
 
-	tiles = list(tmpTiles)
-	tiles.sort()
+	# tiles = list(tmpTiles)
+	# tiles.sort()
 
-	#Just for QC
-	#for i in xrange(10):
-	outputTable(tiles)
+	# #Just for QC
+	# #for i in xrange(10):
+	# outputTable(tiles)
 
 
 if __name__ == "__main__":

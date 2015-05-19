@@ -9,6 +9,9 @@ import copy
 import numpy as np
 import algorithms
 import os,sys,random,string,commands
+import urllib2
+from sequencelib import dbSNPFastaIterator
+
 
 #Common
 RNAFOLD = 'RNAfold -noPS'
@@ -360,6 +363,31 @@ class SNP(Interval):
         sequenceElem = rootElem.find("SEQUENCE")
         DNAElem = sequenceElem.find("DNA")
         return DNAElem.text.replace("\n","")
+
+class dbSNP():
+    def __init__(self,name="",snpPos=-1,score=0.0):
+        self.name = name
+        self.score = score
+        self.snpPos = snpPos
+        self.fetchSequence()
+
+    def fetchSequence(self):
+        baseurl = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.cgi?db=snp&id=%s&rettype=fasta&retmode=text"
+        request = urllib2.Request(baseurl % self.name)
+        response = urllib2.urlopen(request)
+        #parse fasta record
+        fastaIter = dbSNPFastaIterator(response)
+        record = fastaIter.next()
+        #Update chr, start, end, sequence snpPos, snpClass
+        self.sequence = record['sequence']
+        self.alleles = record['alleles']
+        self.taxid = record['taxid']
+        self.snpPos = record['pos']-1
+        self.GMAF = record['GMAF']
+        self.varClass = record['class']
+
+    def __len__(self):
+        return len(self.sequence)
 
 
 class SplicedInterval(Interval):

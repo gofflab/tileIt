@@ -1,5 +1,6 @@
 #/usr/bin/env python
 import string,operator,random,math
+from itertools import product
 
 ######
 #Parsers
@@ -19,7 +20,7 @@ def FastaIterator(handle):
             break
     
     while True:
-        if line[0] <>">":
+        if line[0] <> ">":
             raise ValueError("Records in Fasta files should start with a '>' character")
         name = line[1:].rstrip()
         lines = []
@@ -31,6 +32,49 @@ def FastaIterator(handle):
             line = handle.readline()
         #Return record then continue
         newSeq = {'name':name,'sequence':"".join(lines)}
+        yield newSeq
+        
+        if not line : return #StopIteration
+    assert False, "Should not reach this line"
+
+def dbSNPFastaIterator(handle):
+    """
+    Generator function to iterate over fasta records FROM dbSNP in <handle>:
+    Use in a loop to apply to each Seq record contained in a .fasta file
+    Input: record handle as obtained by handle = open(<file>,'r')
+    Returns an iterator across Sequences in file
+    """
+    #Skip any header text
+    while True:
+        line = handle.readline()
+        if line == "" : return #Premature end of file, or just empty?
+        if line [0] == ">":
+            break
+    
+    while True:
+        if line[0] <> ">":
+            raise ValueError("Records in Fasta files should start with a '>' character")
+        header = line[1:].rstrip()
+        fields = header.split("|")
+        newSeq = {'name' : fields[2].split(" ")[0]}
+        for field in fields[3:]:
+            k,v = field.split("=")
+            v = v.strip('"')
+            newSeq[k] = v
+        lines = []
+        line = handle.readline()
+        while True:
+            if not line : break
+            if line[0] == ">" : break
+            lines.append(line.rstrip().replace(" ",""))
+            line = handle.readline()
+        #Return record then continue
+        newSeq['sequence'] = "".join(lines)
+        try:
+            newSeq['pos'] = int(newSeq['pos'])
+        except KeyError:
+            pass
+
         yield newSeq
         
         if not line : return #StopIteration
@@ -146,23 +190,47 @@ def genRandomFromDist(length,freqs):
 #############
 # IUPAC tools
 ##############
+# iupacdict = {'A':'A',
+#     'C':'C',
+#     'G':'G',
+#     'T':'T',
+#     'M':'[AC]',
+#     'R':'[AG]',
+#     'W':'[AT]',
+#     'S':'[CG]',
+#     'Y':'[CT]',
+#     'K':'[GT]',
+#     'V':'[ACG]',
+#     'H':'[ACT]',
+#     'D':'[AGT]',
+#     'B':'[CGT]',
+#     'X':'[ACGT]',
+#     'N':'[ACGT]'}
+
 iupacdict = {'A':'A',
     'C':'C',
     'G':'G',
     'T':'T',
-    'M':'[AC]',
-    'R':'[AG]',
-    'W':'[AT]',
-    'S':'[CG]',
-    'Y':'[CT]',
-    'K':'[GT]',
-    'V':'[ACG]',
-    'H':'[ACT]',
-    'D':'[AGT]',
-    'B':'[CGT]',
-    'X':'[ACGT]',
-    'N':'[ACGT]'}
+    'a':'A',
+    'c':'C',
+    'g':'G',
+    't':'T',
+    'M':'AC',
+    'R':'AG',
+    'W':'AT',
+    'S':'CG',
+    'Y':'CT',
+    'K':'GT',
+    'V':'ACG',
+    'H':'ACT',
+    'D':'AGT',
+    'B':'CGT',
+    'X':'ACGT',
+    'N':'ACGT',
+    'n':'ACGT'}
 
+def disambiguateIUPAC(seq,d=iupacdict):
+    return list(map("".join, product(*map(d.get, seq))))
 
 ###########
 #Motif Tools
