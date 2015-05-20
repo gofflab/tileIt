@@ -248,18 +248,12 @@ def scanSequence(sequence,seqName,tileStep=1,tileSize=150):
 ###################
 
 def makeTileFromSnp(snp,halfWidth=50):
+	# Tile is centered (as best as possible) on SNP position
     #chrom = 'chr1'
-    flankStart = snp.start-halfWidth
-    flankEnd = snp.start+halfWidth
-    urlbase = "http://genome.ucsc.edu/cgi-bin/das/hg19/dna?segment=%s:%d,%d"
-    request = urllib2.Request(urlbase % (snp.chr,flankStart,flankEnd))
-    u = urllib2.urlopen(request)
-    tree = ElementTree.parse(u)
-    rootElem = tree.getroot()
-    sequenceElem = rootElem.find("SEQUENCE")
-    DNAElem = sequenceElem.find("DNA")
-    sequence = DNAElem.text.replace("\n","")
-    tile = SNPTile(sequence=sequence,seqName=snp.name,startPos=flankStart,snpPos=snp.start)
+    flankStart = snp.snpPos-halfWidth
+    flankEnd = snp.snpPos+halfWidth
+    subSequence = snp.sequence[flankStart:flankEnd]
+    tile = SNPTile(sequence=subSequence,seqName=snp.name,startPos=1,snpPos=snp.start)
     return tile
 
 ###################
@@ -504,10 +498,14 @@ def test():
 
 	# Get dbSNP objects from rsIds
 	snps = []
+	snpCount = 0
 	for rsid in rsIds[:50]:
-		print >>sys.stderr, rsid
+		snpCount += 1
+		if snpCount%10 == 0:
+			print >>sys.stderr, "."
 		snps.append(intervallib.dbSNP(name=rsid))
 
+	#Test that allele position is correct
 	for snp in snps:
 		print >>sys.stderr, "%s\t%s" % (snp.sequence[snp.snpPos],snp.alleles)
 
