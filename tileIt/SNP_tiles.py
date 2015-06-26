@@ -104,18 +104,20 @@ class Tile:
 		return ">%s\n%s" % (self.name,self.sequence)
 
 class SNPTile(Tile):
-	def __init__(self,sequence,seqName,snpPos,alleles,snpClass,prefix='',suffix='',tag=''):
+	def __init__(self,sequence,seqName,snpPos,alleles,snpClass,prefix='',suffix='',tag='',GMAF=''):
 		Tile.__init__(self,sequence=sequence,seqName=seqName,startPos=1,prefix=prefix,suffix=suffix,tag=tag)
 		self.snpPos=snpPos
-		self.refAllele=refAllele
-		self.nonrefAllele=nonrefAllele
-		self.snpIndexPos=len(self.sequence)/2
+		self.alleles=alleles
+		self.GMAF=GMAF
+		#self.snpIndexPos=len(self.sequence)/2
+		self.snpClass=snpClass
 
-	def oligoSequence(self,allele="ref"):
-		if allele == "ref":
-			return self.compiledPrefix()+self.sequence[:self.snpIndexPos]+self.refAllele+self.sequence[self.snpIndexPos+1:]+self.compiledSuffix()
-		elif allele == "nonref":
-			return self.compiledPrefix()+self.sequence[:self.snpIndexPos]+self.nonrefAllele+self.sequence[self.snpIndexPos+1:]+self.compiledSuffix()
+	def oligoSequence(self,ambiguous=True):
+		pass
+
+	def splitTiles(self):
+		"""Returns a list of Tiles with unambiguous bases."""
+		pass
 
 
 def usage():
@@ -510,10 +512,10 @@ def test():
 		print >>sys.stderr, "%s\t%s" % (snp.sequence[snp.snpPos],snp.alleles)
 
 
-	# tiles = []
-	# for snp in snps:
-	# 	tile = makeTileFromSnp(snp,halfWidth=halfWidth)
-	# 	tiles.append(tile)
+	SNPtiles = []
+	for snp in snps:
+		tile = makeTileFromSnp(snp,halfWidth=halfWidth)
+		tiles.append(tile)
 
 	# for tile in tiles:
 	# 	if sites != None:
