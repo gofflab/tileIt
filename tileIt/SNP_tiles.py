@@ -33,8 +33,8 @@ class TileError(Exception):
 class Tile:
 	def __init__(self,sequence,seqName,startPos,prefix='',suffix='',tag=''):
 		self.sequence = sequence
-		self.startPos = startPos
-		self.start = startPos
+		self.startPos = int(startPos)
+		self.start = int(startPos)
 		self.seqName = seqName
 		self.name = "%s:%d-%d" % (self.seqName,self.start,self.start+len(self.sequence))
 		self.prefix = prefix
@@ -76,7 +76,7 @@ class Tile:
 
 	def GC(self):
 		return sequencelib.gc_content(self.oligoSequence())
-		
+
 	def oligoSequence(self):
 		return self.compiledPrefix()+self.sequence+self.compiledSuffix()
 
@@ -104,13 +104,15 @@ class Tile:
 		return ">%s\n%s" % (self.name,self.sequence)
 
 class SNPTile(Tile):
-	def __init__(self,sequence,seqName,snpPos,alleles,snpClass,prefix='',suffix='',tag='',GMAF=''):
-		Tile.__init__(self,sequence=sequence,seqName=seqName,startPos=1,prefix=prefix,suffix=suffix,tag=tag)
-		self.snpPos=snpPos
-		self.alleles=alleles
+	def __init__(self,sequence,seqName,snpPos,alleles,snpClass,startPos=1,prefix='',suffix='',tag='',GMAF=''):
+		#super(SNPTile, self).__init__(*args, **kwargs)
+		Tile.__init__(self,sequence=sequence,seqName=seqName,startPos=int(startPos),prefix=prefix,suffix=suffix,tag=tag)
+		self.snpPos=int(snpPos)
 		self.GMAF=GMAF
 		#self.snpIndexPos=len(self.sequence)/2
 		self.snpClass=snpClass
+		self.alleles=alleles
+		self.numVars=len(self.alleles.split("/"))
 
 	def oligoSequence(self,ambiguous=True):
 		pass
@@ -118,6 +120,12 @@ class SNPTile(Tile):
 	def splitTiles(self):
 		"""Returns a list of Tiles with unambiguous bases."""
 		pass
+
+	def __hash__(self):
+		return hash(self.sequence)
+
+	def __cmp__(self,other):
+		return cmp(hash(self.sequence),hash(other.sequence))
 
 
 def usage():
@@ -171,7 +179,7 @@ def estimateAffixLength(sequence,tagLength):
 	elif tagHits > 1:
 		raise TileError("""You can only have one instance of 'tag' per tile""")
 	elif tagHits == 1:
-		return len(sequence) + tagLength - 1 #-1 is required upone removal of '@' tag 
+		return len(sequence) + tagLength - 1 #-1 is required upone removal of '@' tag
 
 
 def buildTags(numTags,tagLength,sites=None):
@@ -216,7 +224,7 @@ def warnRestrictionSites(sequence,name,sites):
 
 	#Search for sites
 	res = rb.search(tmpSeq)
-	
+
 	#Sum hits
 	totalSites = 0
 	for v in res.values():
@@ -227,7 +235,7 @@ def warnRestrictionSites(sequence,name,sites):
 		pp(res)
 	else:
 		pass
-	
+
 
 #######################
 # Scan input sequence #
@@ -236,7 +244,7 @@ def warnRestrictionSites(sequence,name,sites):
 
 def scanSequence(sequence,seqName,tileStep=1,tileSize=150):
 	tiles = []
-	
+
 	#Pre-compute number of chunks to emit
 	numOfChunks = ((len(sequence)-tileSize)/tileStep) + 1
 
@@ -250,13 +258,12 @@ def scanSequence(sequence,seqName,tileStep=1,tileSize=150):
 ###################
 
 def makeTileFromSnp(snp,halfWidth=50):
-	# Tile is centered (as best as possible) on SNP position
-    #chrom = 'chr1'
-    flankStart = snp.snpPos-halfWidth
-    flankEnd = snp.snpPos+halfWidth
-    subSequence = snp.sequence[flankStart:flankEnd]
-    tile = SNPTile(sequence=subSequence,seqName=snp.name,startPos=1,snpPos=snp.start)
-    return tile
+	flankStart = int(snp.snpPos-halfWidth)
+	flankEnd = int(snp.snpPos+halfWidth)
+	#print >>sys.stderr, "%s\t%s" % (flankStart,flankEnd)
+	subSequence = snp.sequence[flankStart:flankEnd]
+	tile = SNPTile(sequence=subSequence,seqName=snp.name,alleles=snp.alleles,snpClass=snp.varClass,startPos=1,snpPos=1+int(halfWidth))
+	return tile
 
 ###################
 # Reporting
@@ -319,7 +326,7 @@ def outputTable(tiles,outHandle=sys.stdout):
 # 				sites = None
 # 		else:
 # 			assert False, "Unhandled option"
-	
+
 # 	# Grab fname as remainder argument
 # 	try:
 # 		fname = str(args[0])
@@ -485,12 +492,6 @@ def test():
 	tileSize = maxTileSize-prefixLength-suffixLength
 	halfWidth = math.floor(tileSize/2)
 
-	# #Read in input bed file into list
-	# snps = []
-	# inputIter = parseBedSNP(fname)
-	# for snp in inputIter:
-	# 	snps.append(snp)
-
 	# Read in input file (list of 'rs' ids)
 	rsIds = set()
 	inputHandle = open(fname,'r')
@@ -514,25 +515,35 @@ def test():
 
 	SNPtiles = []
 	for snp in snps:
-		tile = makeTileFromSnp(snp,halfWidth=halfWidth)
-		tiles.append(tile)
+		snpTile = makeTileFromSnp(snp,halfWidth=halfWidth)
+		SNPtiles.append(snpTile)
 
-	# for tile in tiles:
-	# 	if sites != None:
-	# 		warnRestrictionSites(tile.sequence,tile.name,sites)
+	#Just some debug reporting. can be removed.
+	for t in SNPtiles:
+		print >>sys.stderr, "%s\n\t%s\n\t%s:%d:%s:%d" %(t,t.sequence,t.alleles,t.snpPos,t.sequence[t.snpPos-1],t.numVars)
 
-	# # Check tiles for restriction sites
-	# if sites != None:
-	# 	cleanTiles = set()
-	# 	for tile in tiles:
-	# 		if hasRestrictionSites(tile.sequence, sites):
-	# 			continue
-	# 		else:
-	# 			cleanTiles.add(tile)
-	# 	tiles = list(cleanTiles)
+	#Warn if any restriction sites might complicate matters
+	for snpTile in SNPtiles:
+		if sites != None:
+			warnRestrictionSites(snpTile.sequence,snpTile.name,sites)
 
-	# #determine number of tags needed
-	# numTagsReq = len(tiles) * numTagsPerTile
+	# Check tiles for restriction sites and remove those that have matches
+	if sites != None:
+		cleanTiles = set()
+		for tile in SNPtiles:
+			if hasRestrictionSites(tile.sequence, sites):
+				continue
+			else:
+				cleanTiles.add(tile)
+		SNPtiles = list(cleanTiles)
+
+	#determine number of tags needed
+	tileCount = 0
+	for tile in SNPtiles:
+		tileCount += tile.numVars
+	numTagsReq = tileCount * numTagsPerTile
+
+	print >>sys.stderr, "%d total tags requested" % numTagsReq
 
 	# tags = buildTags(numTagsReq,tagLength,sites=sites)
 
@@ -540,7 +551,7 @@ def test():
 
 	# #Create numTagsPerTile tiles for each sequence
 	# tmpTiles = set()
-	
+
 	# #Add prefix, suffix, and tag
 	# for i in xrange(len(tiles)):
 	# 	for j in xrange(numTagsPerTile):
