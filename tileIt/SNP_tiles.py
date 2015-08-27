@@ -112,7 +112,7 @@ class SNPTile(Tile):
 		#self.snpIndexPos=len(self.sequence)/2
 		self.snpClass=snpClass
 		self.alleles=alleles
-		self.numVars=len(self.alleles.split("/"))
+		self.numVars=len(self.alleles)
 
 	def oligoSequence(self,ambiguous=True):
 		pass
@@ -417,8 +417,12 @@ def test():
 
 	#Test that allele position is correct
 	#for snp in snps:
-	#	print >>sys.stderr, "%s\t%s" % (snp.sequence[snp.snpPos],snp.alleles)
+	#	print >>sys.stderr, "%s\t%s" % (snp.sequence[snp.snpPos],"/".join(snp.alleles))
+	#	print >>sys.stderr, "%d" % snp.numAlleles()
 
+	#################
+	#TODO: dump output table for SNPs with summary information.  Maybe after filtering?
+	#################
 
 	SNPtiles = []
 	for snp in snps:
@@ -480,16 +484,14 @@ def test():
 	tiles = list(tmpTiles)
 	tiles.sort()
 
-	# #Just for QC
-	for i in xrange(10):
-		outputTable(tiles)
+	outputTable(tiles)
 
 	if(fastaOutput):
 		fastaHandle = open(fastaOutFile,'w')
 		outputFasta(tiles,fastaHandle)
 		fastaHandle.close()
 
-	print >>sys.stderr, "There are a total of %d unique oligos.\n Oligo length: %d\n Prefix Length: %d\n Tile Length: %d\n Suffix Length: %d\n Tags per Tile: %d " % (len(tiles),maxTileSize,prefixLength,maxTileSize-prefixLength-suffixLength,suffixLength,numTagsPerTile)
+	print >>sys.stderr, "There are a total of %d unique oligos.\n Oligo length: %d\n Prefix Length: %d\n Tile Length: %d\n Suffix Length: %d\n Tag Length: %d\n Tags per Tile: %d " % (len(tiles),maxTileSize,prefixLength,maxTileSize-prefixLength-suffixLength,suffixLength,tagLength,numTagsPerTile)
 
 
 if __name__ == "__main__":
