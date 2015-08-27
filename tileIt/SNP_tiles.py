@@ -405,14 +405,20 @@ def test():
 
 	# Get dbSNP objects from rsIds
 	snps = []
+	print >>sys.stderr, "Fetching snps and flanking sequence\n"
 	snpCount = 0
-	for rsid in rsIds[:50]:
+	#for rsid in rsIds[:50]:  #Testing restriction only
+	for rsid in rsIds:
 		snpCount += 1
 		if snpCount%10 == 0:
 			sys.stderr.write(".")
 			if snpCount%100 == 0:
-				sys.stderr.write(snpCount)
-		snps.append(intervallib.dbSNP(name=rsid))
+				sys.stderr.write("%d" % snpCount)
+		try:
+			snps.append(intervallib.dbSNP(name=rsid))
+		except StopIteration:
+			print >>sys.stderr, "\nError fetching %s" % (rsid)
+
 	sys.stderr.write('\n')
 
 	#Test that allele position is correct

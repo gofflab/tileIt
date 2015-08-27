@@ -384,7 +384,10 @@ class dbSNP():
         self.splitAlleles()
         self.taxid = record['taxid']
         self.snpPos = record['pos']-1
-        self.GMAF = record['GMAF']
+        try:
+            self.GMAF = record['GMAF']
+        except:
+            pass
         self.varClass = record['class']
 
     def splitAlleles(self):

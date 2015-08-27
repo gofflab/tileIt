@@ -1,0 +1,313 @@
+Fetching snps and flanking sequence
+
+..........100..........200..........300..........400..........500..........600..........700..........800.....
+Error fetching rs68037805
+.....900..........1000.........
+Checking for restriction site compatability.
+Warning: Tile 'rs12621129:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->56
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs7951870:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: []
+  SfiI: [
+         ->26
+        ]
+}
+Warning: Tile 'rs72857434:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->43
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs11631683:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->61
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs13596:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: []
+  SfiI: [
+         ->33
+        ]
+}
+Warning: Tile 'rs2710314:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->87
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs11636336:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->40
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs283487:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->45
+        ]
+  XbaI: []
+  SfiI: []
+}
+Warning: Tile 'rs17691888:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->4
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs6771655:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->9
+        ]
+  XbaI: []
+  SfiI: []
+}
+Warning: Tile 'rs4748467:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->5
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs769948:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->84
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs6028163:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->55
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs12575519:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: []
+  SfiI: [
+         ->76
+        ]
+}
+Warning: Tile 'rs7499750:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->7
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs112598443:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->7
+        ]
+  XbaI: [
+         ->19
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs7095057:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->86
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs6469310:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->31
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs56313315:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->36
+        ]
+  XbaI: []
+  SfiI: []
+}
+Warning: Tile 'rs13267290:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->36
+        ]
+  XbaI: []
+  SfiI: []
+}
+Warning: Tile 'rs6673880:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: []
+  SfiI: [
+         ->53
+        ]
+}
+Warning: Tile 'rs7191999:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->38
+        ]
+  XbaI: []
+  SfiI: []
+}
+Warning: Tile 'rs6678140:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->20
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs12325003:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: []
+  SfiI: [
+         ->87
+        ]
+}
+Warning: Tile 'rs6926151:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->88
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs2802535:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->62
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs4594198:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->79
+        ]
+  XbaI: []
+  SfiI: []
+}
+Warning: Tile 'rs62334480:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->9
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs72936314:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->3
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs615804:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->41
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs12616905:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->30
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs72857426:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->63
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs4812326:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->17
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs10933068:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->60
+        ]
+  XbaI: []
+  SfiI: []
+}
+Warning: Tile 'rs75271563:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->14
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs2710346:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: []
+  XbaI: [
+         ->8
+        ]
+  SfiI: []
+}
+Warning: Tile 'rs2660304:1-97' has incompatible restriction sites at the following positions and will be removed:
+{
+  KpnI: [
+         ->61
+        ]
+  XbaI: []
+  SfiI: []
+}
+10675 total tags requested
+Traceback (most recent call last):
+  File "../tileIt/SNP_tiles.py", line 504, in <module>
+    test()
+  File "../tileIt/SNP_tiles.py", line 474, in test
+    cleanTiles.update(tile.splitTiles())
+  File "../tileIt/SNP_tiles.py", line 125, in splitTiles
+    tmpTile = Tile(sequence=seq,seqName=self.seqName+":"+sequencelib.iupacdict[self.sequence[self.snpPos-1]][iterNum],startPos=self.startPos,prefix=self.prefix,suffix=self.suffix,tag=self.tag)
+IndexError: string index out of range
