@@ -446,20 +446,31 @@ def test():
 			warnRestrictionSites(snpTile.sequence,snpTile.name,sites)
 
 	# Check tiles for restriction sites and remove those that have matches
+	nSiteIncompat = 0
 	if sites != None:
 		cleanTiles = set()
 		for tile in SNPtiles:
 			if hasRestrictionSites(tile.sequence, sites):
+				nSiteIncompat += 1
 				continue
 			else:
 				cleanTiles.add(tile)
 		SNPtiles = list(cleanTiles)
+	print >>sys.stderr, "%d SNPs removed due to incompatible restriction sites" % (nSiteIncompat)
+
+	#Disambiguate SNPTiles into Tiles
+	cleanTiles = set()
+	for tile in SNPtiles:
+		try:
+			cleanTiles.update(tile.splitTiles())
+		except IndexError:
+			print >>sys.stderr, "Error processing %s" % tile.name
+			pp(tile)
+
+	tiles = list(cleanTiles)
 
 	#determine number of tags needed
-	tileCount = 0
-	for tile in SNPtiles:
-		tileCount += tile.numVars
-	numTagsReq = tileCount * numTagsPerTile
+	numTagsReq = len(tiles) * numTagsPerTile
 
 	print >>sys.stderr, "%d total tags requested" % numTagsReq
 
@@ -467,12 +478,6 @@ def test():
 	tags = buildTags(numTagsReq,tagLength,sites=sites)
 
 	assert len(tags) == numTagsReq
-
-	#Disambiguate SNPTiles into Tiles
-	cleanTiles = set()
-	for tile in SNPtiles:
-		cleanTiles.update(tile.splitTiles())
-	tiles = list(cleanTiles)
 
 	#Create numTagsPerTile tiles for each sequence
 	tmpTiles = set()

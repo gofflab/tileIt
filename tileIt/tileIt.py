@@ -7,8 +7,7 @@ from itertools import tee,izip
 import copy
 from utils import pp
 
-# Base class for a guide RNA
-# Takes a 23mer 20 Guide + 3 PAM and processes it accordingly
+# Base class for an MPRA Tile
 class TileError(Exception):
 	def __init__(self,value):
 		self.value = value

@@ -302,12 +302,49 @@ Warning: Tile 'rs2660304:1-97' has incompatible restriction sites at the followi
   XbaI: []
   SfiI: []
 }
-10675 total tags requested
-Traceback (most recent call last):
-  File "../tileIt/SNP_tiles.py", line 504, in <module>
-    test()
-  File "../tileIt/SNP_tiles.py", line 474, in test
-    cleanTiles.update(tile.splitTiles())
-  File "../tileIt/SNP_tiles.py", line 125, in splitTiles
-    tmpTile = Tile(sequence=seq,seqName=self.seqName+":"+sequencelib.iupacdict[self.sequence[self.snpPos-1]][iterNum],startPos=self.startPos,prefix=self.prefix,suffix=self.suffix,tag=self.tag)
-IndexError: string index out of range
+37 SNPs removed due to incompatible restriction sites
+Error processing rs3743078:1-1
+*ClassInstance rs3743078:1-1:None
+  GC............: <bound method SNPTile.GC of rs3743078:1-1:None>
+  GMAF..........: 
+  __cmp__.......: <bound method SNPTile.__cmp__ of rs3743078:1-1:None>
+  __doc__.......: None
+  __eq__........: <bound method SNPTile.__eq__ of rs3743078:1-1:None>
+  __hash__......: <bound method SNPTile.__hash__ of rs3743078:1-1:None>
+  __init__......: <bound method SNPTile.__init__ of rs3743078:1-1:None>
+  __len__.......: <bound method SNPTile.__len__ of rs3743078:1-1:None>
+  __module__....: __main__
+  __repr__......: <bound method SNPTile.__repr__ of rs3743078:1-1:None>
+  __str__.......: <bound method SNPTile.__str__ of rs3743078:1-1:None>
+  alleles.......: [
+                   ->C
+                   ->G
+                  ]
+  compiledPrefix: <bound method SNPTile.compiledPrefix of rs3743078:1-1:None>
+  compiledSuffix: <bound method SNPTile.compiledSuffix of rs3743078:1-1:None>
+  name..........: rs3743078:1-1
+  numVars.......: 2
+  oligoSequence.: <bound method SNPTile.oligoSequence of rs3743078:1-1:None>
+  prefix........: 
+  seqName.......: rs3743078
+  sequence......: 
+  snpClass......: snp
+  snpPos........: 49
+  splitTiles....: <bound method SNPTile.splitTiles of rs3743078:1-1:None>
+  start.........: 1
+  startPos......: 1
+  suffix........: 
+  tag...........: 
+  tileFasta.....: <bound method SNPTile.tileFasta of rs3743078:1-1:None>
+  toBed.........: <bound method SNPTile.toBed of rs3743078:1-1:None>
+  toFasta.......: <bound method SNPTile.toFasta of rs3743078:1-1:None>
+  validate......: <bound method SNPTile.validate of rs3743078:1-1:None>
+*
+10705 total tags requested
+There are a total of 10705 unique oligos.
+ Oligo length: 150
+ Prefix Length: 16
+ Tile Length: 97
+ Suffix Length: 37
+ Tag Length: 8
+ Tags per Tile: 5 
