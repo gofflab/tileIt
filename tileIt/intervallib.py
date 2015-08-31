@@ -381,10 +381,20 @@ class dbSNP():
         #Update chr, start, end, sequence snpPos, snpClass
         self.sequence = record['sequence']
         self.alleles = record['alleles']
+        self.splitAlleles()
         self.taxid = record['taxid']
         self.snpPos = record['pos']-1
-        self.GMAF = record['GMAF']
+        try:
+            self.GMAF = record['GMAF']
+        except:
+            pass
         self.varClass = record['class']
+
+    def splitAlleles(self):
+        self.alleles = self.alleles.split("/")
+
+    def numAlleles(self):
+        return len(self.alleles)
 
     def __len__(self):
         return len(self.sequence)

@@ -112,7 +112,7 @@ class SNPTile(Tile):
 		#self.snpIndexPos=len(self.sequence)/2
 		self.snpClass=snpClass
 		self.alleles=alleles
-		self.numVars=len(self.alleles.split("/"))
+		self.numVars=len(self.alleles)
 
 	def oligoSequence(self,ambiguous=True):
 		pass
@@ -405,20 +405,30 @@ def test():
 
 	# Get dbSNP objects from rsIds
 	snps = []
+	print >>sys.stderr, "Fetching snps and flanking sequence\n"
 	snpCount = 0
-	for rsid in rsIds[:50]:
+	#for rsid in rsIds[:50]:  #Testing restriction only
+	for rsid in rsIds:
 		snpCount += 1
 		if snpCount%10 == 0:
 			sys.stderr.write(".")
 			if snpCount%100 == 0:
-				sys.stderr.write(snpCount)
-		snps.append(intervallib.dbSNP(name=rsid))
+				sys.stderr.write("%d" % snpCount)
+		try:
+			snps.append(intervallib.dbSNP(name=rsid))
+		except StopIteration:
+			print >>sys.stderr, "\nError fetching %s" % (rsid)
+
 	sys.stderr.write('\n')
 
 	#Test that allele position is correct
 	#for snp in snps:
-	#	print >>sys.stderr, "%s\t%s" % (snp.sequence[snp.snpPos],snp.alleles)
+	#	print >>sys.stderr, "%s\t%s" % (snp.sequence[snp.snpPos],"/".join(snp.alleles))
+	#	print >>sys.stderr, "%d" % snp.numAlleles()
 
+	#################
+	#TODO: dump output table for SNPs with summary information.  Maybe after filtering?
+	#################
 
 	SNPtiles = []
 	for snp in snps:
@@ -436,20 +446,31 @@ def test():
 			warnRestrictionSites(snpTile.sequence,snpTile.name,sites)
 
 	# Check tiles for restriction sites and remove those that have matches
+	nSiteIncompat = 0
 	if sites != None:
 		cleanTiles = set()
 		for tile in SNPtiles:
 			if hasRestrictionSites(tile.sequence, sites):
+				nSiteIncompat += 1
 				continue
 			else:
 				cleanTiles.add(tile)
 		SNPtiles = list(cleanTiles)
+	print >>sys.stderr, "%d SNPs removed due to incompatible restriction sites" % (nSiteIncompat)
+
+	#Disambiguate SNPTiles into Tiles
+	cleanTiles = set()
+	for tile in SNPtiles:
+		try:
+			cleanTiles.update(tile.splitTiles())
+		except IndexError:
+			print >>sys.stderr, "Error processing %s" % tile.name
+			pp(tile)
+
+	tiles = list(cleanTiles)
 
 	#determine number of tags needed
-	tileCount = 0
-	for tile in SNPtiles:
-		tileCount += tile.numVars
-	numTagsReq = tileCount * numTagsPerTile
+	numTagsReq = len(tiles) * numTagsPerTile
 
 	print >>sys.stderr, "%d total tags requested" % numTagsReq
 
@@ -457,12 +478,6 @@ def test():
 	tags = buildTags(numTagsReq,tagLength,sites=sites)
 
 	assert len(tags) == numTagsReq
-
-	#Disambiguate SNPTiles into Tiles
-	cleanTiles = set()
-	for tile in SNPtiles:
-		cleanTiles.update(tile.splitTiles())
-	tiles = list(cleanTiles)
 
 	#Create numTagsPerTile tiles for each sequence
 	tmpTiles = set()
@@ -480,16 +495,14 @@ def test():
 	tiles = list(tmpTiles)
 	tiles.sort()
 
-	# #Just for QC
-	for i in xrange(10):
-		outputTable(tiles)
+	outputTable(tiles)
 
 	if(fastaOutput):
 		fastaHandle = open(fastaOutFile,'w')
 		outputFasta(tiles,fastaHandle)
 		fastaHandle.close()
 
-	print >>sys.stderr, "There are a total of %d unique oligos.\n Oligo length: %d\n Prefix Length: %d\n Tile Length: %d\n Suffix Length: %d\n Tags per Tile: %d " % (len(tiles),maxTileSize,prefixLength,maxTileSize-prefixLength-suffixLength,suffixLength,numTagsPerTile)
+	print >>sys.stderr, "There are a total of %d unique oligos.\n Oligo length: %d\n Prefix Length: %d\n Tile Length: %d\n Suffix Length: %d\n Tag Length: %d\n Tags per Tile: %d " % (len(tiles),maxTileSize,prefixLength,maxTileSize-prefixLength-suffixLength,suffixLength,tagLength,numTagsPerTile)
 
 
 if __name__ == "__main__":
