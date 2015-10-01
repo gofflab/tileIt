@@ -19,7 +19,7 @@ from Bio.Seq import Seq
 from Bio.Alphabet.IUPAC import IUPACAmbiguousDNA
 from itertools import tee,izip
 import copy
-from utils import pp
+#from utils import pp
 import math
 
 # Base class for a guide RNA
@@ -78,7 +78,7 @@ class Tile:
 		return sequencelib.gc_content(self.oligoSequence())
 
 	def oligoSequence(self):
-		return self.compiledPrefix()+self.sequence+self.compiledSuffix()
+		return self.prefix+self.sequence+self.suffix
 
 	def __hash__(self):
 		return hash(self.oligoSequence())
@@ -240,7 +240,7 @@ def warnRestrictionSites(sequence,name,sites):
 
 	if totalSites > 0:
 		print >>sys.stderr, "Warning: Tile '%s' has incompatible restriction sites at the following positions and will be removed:" % (name)
-		pp(res)
+		#pp(res)
 	else:
 		pass
 
@@ -278,7 +278,7 @@ def makeTileFromSnp(snp,halfWidth=50):
 ###################
 
 def outputTable(tiles,outHandle=sys.stdout):
-	outputKeys=["name","seqName","startPos","oligoSequence","prefix","suffix","tag","GC"]
+	outputKeys=["name","seqName","startPos","oligoSequence"]
 	print >>outHandle, "\t".join(outputKeys)
 
 	for tile in tiles:
@@ -381,7 +381,7 @@ def test():
 			assert False, "Unhandled option"
 	# Grab fname as remainder argument
 	try:
-		fname = str(args[0])
+		fname = "allsnps.txt"
 		#handle = open(fname,'r')
 	except:
 		usage()
@@ -465,7 +465,7 @@ def test():
 			cleanTiles.update(tile.splitTiles())
 		except IndexError:
 			print >>sys.stderr, "Error processing %s" % tile.name
-			pp(tile)
+			#pp(tile)
 
 	tiles = list(cleanTiles)
 
@@ -489,7 +489,7 @@ def test():
 			tmpTile.name = "%s:%d" % (tmpTile.name,j)
 			tmpTile.prefix = prefix
 			tmpTile.suffix = suffix
-			tmpTile.tag = tags.pop()
+			#tmpTile.tag = tags.pop()
 			tmpTiles.add(tmpTile)
 
 	tiles = list(tmpTiles)
@@ -497,12 +497,18 @@ def test():
 
 	outputTable(tiles)
 
+	
+
+	
+
 	if(fastaOutput):
 		fastaHandle = open(fastaOutFile,'w')
 		outputFasta(tiles,fastaHandle)
 		fastaHandle.close()
 
-	print >>sys.stderr, "There are a total of %d unique oligos.\n Oligo length: %d\n Prefix Length: %d\n Tile Length: %d\n Suffix Length: %d\n Tag Length: %d\n Tags per Tile: %d " % (len(tiles),maxTileSize,prefixLength,maxTileSize-prefixLength-suffixLength,suffixLength,tagLength,numTagsPerTile)
+	
+
+
 
 
 if __name__ == "__main__":

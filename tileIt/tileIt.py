@@ -5,7 +5,7 @@ from Bio.Seq import Seq
 from Bio.Alphabet.IUPAC import IUPACAmbiguousDNA
 from itertools import tee,izip
 import copy
-from utils import pp
+#from utils import pp
 
 # Base class for an MPRA Tile
 class TileError(Exception):
@@ -62,7 +62,7 @@ class Tile:
 		return sequencelib.gc_content(self.oligoSequence())
 		
 	def oligoSequence(self):
-		return self.compiledPrefix()+self.sequence+self.compiledSuffix()
+		return self.prefix+self.sequence+self.suffix
 
 	def __hash__(self):
 		return hash(self.oligoSequence())
@@ -191,7 +191,7 @@ def warnRestrictionSites(sequence,name,sites):
 
 	if totalSites > 0:
 		print >>sys.stderr, "Warning: The following positions in '%s' will be masked from tiles due to incompatible restictions sites:" % (name)
-		pp(res)
+		#pp(res)
 	else:
 		pass
 	
@@ -217,7 +217,7 @@ def scanSequence(sequence,seqName,tileStep=1,tileSize=150):
 ###################
 
 def outputTable(tiles,outHandle=sys.stdout):
-	outputKeys=["name","seqName","startPos","oligoSequence","prefix","suffix","tag","GC"]
+	outputKeys=["name","seqName","startPos","oligoSequence"]
 	print >>outHandle, "\t".join(outputKeys)
 
 	for tile in tiles:
@@ -306,7 +306,7 @@ def main():
 			assert False, "Unhandled option"
 	# Grab fname as remainder argument
 	try:
-		fname = str(args[0])
+		fname = "Firre.fasta"
 		handle = open(fname,'r')
 	except:
 		usage()
@@ -361,7 +361,7 @@ def main():
 			tmpTile.name = "%s:%d" % (tmpTile.name,j)
 			tmpTile.prefix = prefix
 			tmpTile.suffix = suffix
-			tmpTile.tag = tags.pop()
+			#tmpTile.tag = tags.pop()
 			tmpTiles.add(tmpTile)
 
 	tiles = list(tmpTiles)
@@ -374,7 +374,7 @@ def main():
 	print >>sys.stderr, "There are a total of %d unique tiles" % len(tiles)
 
 def test():
-	fname = "test/Firre.fasta"
+	fname = "test/Firre2.fasta"
 	handle = open(fname,'r')
 	fastaIter = sequencelib.FastaIterator(handle)
 
