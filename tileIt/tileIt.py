@@ -64,6 +64,9 @@ class Tile:
 	def oligoSequence(self):
 		return self.prefix+self.sequence+self.suffix
 
+	def oligoSequenceWithBarcode(self):
+		return self.compiledPrefix+self.sequence+self.compiledSuffix
+
 	def __hash__(self):
 		return hash(self.oligoSequence())
 
